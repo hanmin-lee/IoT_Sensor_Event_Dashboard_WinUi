@@ -33,9 +33,11 @@ namespace IoT_Sensor_Event_Dashboard_WinUi.Pages
             EndDatePicker.Date = new DateTimeOffset(DateTime.Today);
             EndTimePicker.Time = new TimeSpan(23, 59, 59);
 
+            // 콤보 기본값
+            StatusCombo.SelectedIndex = 0; // ALL
+
             ScheduleMidnightRefresh();
 
-            // 페이지가 사라질 때 타이머 정리
             Unloaded += (_, __) => _midnightTimer?.Stop();
         }
 
@@ -45,17 +47,11 @@ namespace IoT_Sensor_Event_Dashboard_WinUi.Pages
             var nextMidnight = now.Date.AddDays(1);
             var timeUntilMidnight = nextMidnight - now;
 
-            _midnightTimer = new DispatcherTimer
-            {
-                Interval = timeUntilMidnight
-            };
+            _midnightTimer = new DispatcherTimer { Interval = timeUntilMidnight };
             _midnightTimer.Tick += (_, __) =>
             {
-                // 자정 이후 '금일' 반영
                 EndDatePicker.Date = new DateTimeOffset(DateTime.Today);
                 EndTimePicker.Time = new TimeSpan(23, 59, 59);
-
-                // 이후에는 24시간 주기
                 _midnightTimer!.Interval = TimeSpan.FromDays(1);
             };
             _midnightTimer.Start();

@@ -22,7 +22,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
         private DateTime _lastUiUpdateTime = DateTime.UtcNow;
         private const int MaxLogLines = 5000;
 
-        // 페이징 상태 (A안: MainWindow 보유)
+        // Paging (A안: MainWindow 관리)
         private int _currentPage = 1;
         private int _pageSize = 20;
         private int _totalQueryPages = 1;
@@ -116,7 +116,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
         private void SetupQueryResultListViewColumns() { }
         private void InitializeQueryTab() { }
 
-        // 메시지 처리 시 Consumer 페이지에 Recent Events 렌더링
+        // Consumer 페이지 Recent Events 렌더링
         private void HandleValidMessageProcessed(ConsumeResult<Ignore, string> consumeResult, SensorEvent sensorEvent)
         {
             Interlocked.Increment(ref _messagesProcessedCount);
@@ -220,7 +220,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
-        // A안 핵심: 여기서 DataQueryPage의 버튼들을 MainWindow 핸들러에 연결
+        // DataQueryPage의 컨트롤을 MainWindow 핸들러에 연결
         private void WirePageHandlers()
         {
             secondaryMenu.Children.Clear();
@@ -303,7 +303,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
             else if (contentFrame.Content is DataQueryPage q)
             {
-                // DataQuery용 보조 메뉴(간단 텍스트 박스들) + 버튼은 왼쪽 정렬
                 var title = new TextBlock { Text = "Data Query", Margin = new Thickness(4, 0, 0, 10), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
 
                 var startLabel = new TextBlock { Text = "Start Date", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
@@ -317,17 +316,17 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
 
                 var statusLabel = new TextBlock { Text = "Status", Margin = new Thickness(0, 10, 0, 0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
                 var status = new ComboBox { Width = 250 };
-                status.Items.Add(new ComboBoxItem { Content = "All" });
+                status.Items.Add(new ComboBoxItem { Content = "ALL" });
                 status.Items.Add(new ComboBoxItem { Content = "OK" });
                 status.Items.Add(new ComboBoxItem { Content = "ERROR" });
 
-                // 페이지의 현재 값으로 초기화
+                // 페이지 현재 값으로 보조메뉴 초기화
                 startTextBox.Text = q.StartDatePicker.Date.ToString("MM/dd/yyyy");
                 endTextBox.Text = q.EndDatePicker.Date.ToString("MM/dd/yyyy");
                 keyword.Text = q.KeywordBox.Text;
                 status.SelectedIndex = q.StatusCombo.SelectedIndex;
 
-                // 보조메뉴 → 페이지 값 반영
+                // 보조메뉴 변경 시 페이지 값만 동기화(자동 조회 X)
                 startTextBox.TextChanged += (_, __) =>
                 {
                     if (DateTime.TryParse(startTextBox.Text, out var s)) q.StartDatePicker.Date = s;
@@ -365,8 +364,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 secondaryMenu.Children.Add(status);
                 secondaryMenu.Children.Add(searchBtn);
 
-                // 핵심: DataQueryPage 하단(푸터) 버튼들 → MainWindow 핸들러 연결
-                // 중복 연결 방지 위해 먼저 해제 후 연결
+                // DataQueryPage 하단 버튼들 → MainWindow 핸들러 연결
                 q.FirstButton.Click -= buttonQueryFirst_Click;
                 q.PrevButton.Click -= buttonQueryPrev_Click;
                 q.NextButton.Click -= buttonQueryNext_Click;
@@ -445,7 +443,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
-        // 검색 버튼(보조메뉴/페이지 하단 공용)
+        // 검색(보조메뉴/페이지 하단 공용)
         private async void buttonQuerySearch_Click(object sender, RoutedEventArgs e)
         {
             _currentPage = 1;
@@ -498,12 +496,16 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             DateTime startTime = q.StartDatePicker.Date.DateTime.Date + q.StartTimePicker.Time;
             DateTime endTime = q.EndDatePicker.Date.DateTime.Date + q.EndTimePicker.Time;
 
+            var statusItem = q.StatusCombo.SelectedItem as ComboBoxItem;
+            var statusText = (statusItem?.Content?.ToString() ?? "ALL").Trim().ToUpperInvariant();
+
+
             var parameters = new QueryParameters
             {
                 StartTime = startTime,
                 EndTime = endTime,
                 Keyword = q.KeywordBox.Text ?? string.Empty,
-                StatusFilter = (q.StatusCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "ALL",
+                StatusFilter = statusText,          // ← 통일된 값으로 전달
                 PageNumber = _currentPage,
                 PageSize = _pageSize
             };
