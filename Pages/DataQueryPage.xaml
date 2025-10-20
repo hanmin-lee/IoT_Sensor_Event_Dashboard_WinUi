@@ -41,7 +41,7 @@
             <TimePicker x:Name="timePickerQueryEndTime"/>
             <TextBox x:Name="textBoxQueryKeyword"/>
             <ComboBox x:Name="comboBoxQueryStatus">
-                <ComboBoxItem Content="All"/>
+                <ComboBoxItem Content="ALL"/>
                 <ComboBoxItem Content="OK"/>
                 <ComboBoxItem Content="ERROR"/>
             </ComboBox>
@@ -49,5 +49,3 @@
         </StackPanel>
     </Grid>
 </Page>
-
-

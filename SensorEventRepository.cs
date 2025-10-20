@@ -89,21 +89,16 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                     }
                     return; // 성공했으면 루프 종료
                 }
-                catch (SqlException ex) // SQL 관련 예외만 재시도
+                catch (SqlException)
                 {
                     if (transaction == null)
                     {
                         currentTransactionToUse?.Rollback();
                     }
-                    // 마지막 재시도였다면 예외를 다시 던짐
-                    if (retry == maxRetries - 1)
-                    {
-                        throw; 
-                    }
-                    // 그렇지 않으면 잠시 기다린 후 다시 시도
-                    await Task.Delay(retryDelayMs * (retry + 1)); // 지연 시간 증가
+                    if (retry == maxRetries - 1) throw;
+                    await Task.Delay(retryDelayMs * (retry + 1));
                 }
-                catch // 그 외 다른 예외는 즉시 다시 던짐
+                catch
                 {
                     if (transaction == null)
                     {
@@ -138,150 +133,248 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 catch (SqlException ex)
                 {
                     LogAction?.Invoke($"[DB Connection Retry] Attempt {retry + 1}/{maxRetries} failed: {ex.Message}");
-                    if (retry == maxRetries - 1)
-                    {
-                        throw; 
-                    }
+                    if (retry == maxRetries - 1) throw;
                     await Task.Delay(retryDelayMs * (retry + 1));
                 }
             }
             throw new Exception("Failed to open database connection after multiple retries.");
         }
 
+        // ========= 여기부터 수정된 검색 메서드 =========
         public async Task<QueryResult<dynamic>> SearchEventsAsync(QueryParameters parameters)
         {
-            List<dynamic> results = new List<dynamic>();
+            var status = (parameters.StatusFilter ?? "ALL").Trim().ToUpperInvariant();
+            var results = new List<dynamic>();
             int totalCount = 0;
 
-            using (SqlConnection conn = new SqlConnection(_connectionString))
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var keyword = parameters.Keyword?.Trim();
+            bool hasKeyword = !string.IsNullOrEmpty(keyword);
+
+            // ---------- COUNT ----------
+            string countSql = status switch
             {
-                await conn.OpenAsync();
+                "OK" => @"
+SELECT COUNT(*) 
+FROM dbo.SensorEvent s
+WHERE s.EventTime BETWEEN @Start AND @End
+  AND s.Status = 'OK'
+  AND (@Keyword = '' OR s.Message LIKE @Keyword OR s.DeviceId LIKE @Keyword)",
 
-                // Build dynamic WHERE clause for filtering
-                string sensorEventWhereClause = "";
-                string ingestErrorWhereClause = "";
+                "ERROR" => @"
+WITH U AS (
+    SELECT s.Id
+    FROM dbo.SensorEvent s
+    WHERE s.EventTime BETWEEN @Start AND @End
+      AND s.Status = 'ERROR'
+      AND (@Keyword = '' OR s.Message LIKE @Keyword OR s.DeviceId LIKE @Keyword)
+    UNION ALL
+    SELECT ie.Id
+    FROM dbo.IngestError ie
+    WHERE ie.IngestedAt BETWEEN @Start AND @End
+      AND (@Keyword = '' 
+           OR ie.ErrorType LIKE @Keyword 
+           OR ie.ErrorMessage LIKE @Keyword
+           OR ie.RawJson LIKE @Keyword
+                OR (ISJSON(ie.RawJson)=1 AND JSON_VALUE(ie.RawJson,'$.deviceId') LIKE @Keyword))
+)
+SELECT COUNT(*) FROM U;",
 
-                List<string> sensorEventConditions = new List<string>();
-                List<string> ingestErrorConditions = new List<string>();
+                _ => @"
+WITH U AS (
+    SELECT s.Id
+    FROM dbo.SensorEvent s
+    WHERE s.EventTime BETWEEN @Start AND @End
+      AND (@Keyword = '' OR s.Message LIKE @Keyword OR s.DeviceId LIKE @Keyword OR s.Status LIKE @Keyword)
+    UNION ALL
+    SELECT ie.Id
+    FROM dbo.IngestError ie
+    WHERE ie.IngestedAt BETWEEN @Start AND @End
+      AND (@Keyword = '' 
+           OR ie.ErrorType LIKE @Keyword 
+           OR ie.ErrorMessage LIKE @Keyword
+           OR ie.RawJson LIKE @Keyword
+           OR (ISJSON(ie.RawJson)=1 AND JSON_VALUE(ie.RawJson,'$.deviceId') LIKE @Keyword))
+)
+SELECT COUNT(*) FROM U;"
+            };
 
-                if (!string.IsNullOrEmpty(parameters.Keyword))
+            using (var countCmd = new SqlCommand(countSql, conn))
+            {
+                countCmd.Parameters.AddWithValue("@Start", parameters.StartTime);
+                countCmd.Parameters.AddWithValue("@End", parameters.EndTime);
+                countCmd.Parameters.AddWithValue("@Keyword", hasKeyword ? $"%{keyword}%" : "");
+                totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
+            }
+
+            // ---------- PAGE DATA ----------
+            // ERROR/ALL에서 IngestError는 deviceId를 RawJson에서 추출, EventTime은 IngestedAt로 매핑
+            string dataSql = status switch
+            {
+                "OK" => @"
+SELECT
+    'Event' AS RecordType,
+    s.Id,
+    s.DeviceId,
+    s.EventTime,
+    s.Temp,
+    s.Hum,
+    s.Status,
+    s.IngestedAt,
+    CAST(NULL AS nvarchar(100)) AS ErrorType,
+    CAST(NULL AS nvarchar(max)) AS ErrorMessage,
+    CAST(NULL AS nvarchar(max)) AS RawJson,
+    s.EventTime AS SortTime
+FROM dbo.SensorEvent s
+WHERE s.EventTime BETWEEN @Start AND @End
+  AND s.Status = 'OK'
+  AND (@Keyword = '' OR s.Message LIKE @Keyword OR s.DeviceId LIKE @Keyword)
+ORDER BY SortTime DESC
+OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;",
+
+                "ERROR" => @"
+SELECT * FROM (
+    SELECT
+        'Event' AS RecordType,
+        s.Id,
+        s.DeviceId,
+        s.EventTime,
+        s.Temp,
+        s.Hum,
+        s.Status,
+        s.IngestedAt,
+        CAST(NULL AS nvarchar(100)) AS ErrorType,
+        CAST(NULL AS nvarchar(max)) AS ErrorMessage,
+        CAST(NULL AS nvarchar(max)) AS RawJson,
+        s.EventTime AS SortTime
+    FROM dbo.SensorEvent s
+    WHERE s.EventTime BETWEEN @Start AND @End
+      AND s.Status = 'ERROR'
+      AND (@Keyword = '' OR s.Message LIKE @Keyword OR s.DeviceId LIKE @Keyword)
+
+    UNION ALL
+
+    SELECT
+        'Error' AS RecordType,
+        ie.Id,
+        ISNULL(
+  CASE WHEN ISJSON(ie.RawJson)=1 
+       THEN JSON_VALUE(ie.RawJson,'$.deviceId') 
+  END, 
+  '-') AS DeviceId,
+        ie.IngestedAt AS EventTime,                                    -- ★ 시간 매핑
+        CAST(NULL AS decimal(18,2)) AS Temp,
+        CAST(NULL AS int) AS Hum,
+        'ERROR' AS Status,
+        ie.IngestedAt,
+        ie.ErrorType,
+        ie.ErrorMessage,
+        ie.RawJson,
+        ie.IngestedAt AS SortTime
+    FROM dbo.IngestError ie
+    WHERE ie.IngestedAt BETWEEN @Start AND @End
+      AND (@Keyword = '' 
+           OR ie.ErrorType LIKE @Keyword 
+           OR ie.ErrorMessage LIKE @Keyword
+           OR ie.RawJson LIKE @Keyword
+           OR (ISJSON(ie.RawJson)=1 AND JSON_VALUE(ie.RawJson,'$.deviceId') LIKE @Keyword))
+
+) U
+ORDER BY U.SortTime DESC
+OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;",
+
+                _ => @"
+SELECT * FROM (
+    SELECT
+        'Event' AS RecordType,
+        s.Id,
+        s.DeviceId,
+        s.EventTime,
+        s.Temp,
+        s.Hum,
+        s.Status,
+        s.IngestedAt,
+        CAST(NULL AS nvarchar(100)) AS ErrorType,
+        CAST(NULL AS nvarchar(max)) AS ErrorMessage,
+        CAST(NULL AS nvarchar(max)) AS RawJson,
+        s.EventTime AS SortTime
+    FROM dbo.SensorEvent s
+    WHERE s.EventTime BETWEEN @Start AND @End
+      AND (@Keyword = '' OR s.Message LIKE @Keyword OR s.DeviceId LIKE @Keyword OR s.Status LIKE @Keyword)
+
+    UNION ALL
+
+    SELECT
+        'Error' AS RecordType,
+        ie.Id,
+        ISNULL(
+  CASE WHEN ISJSON(ie.RawJson)=1 
+       THEN JSON_VALUE(ie.RawJson,'$.deviceId') 
+  END, 
+  '-') AS DeviceId,
+        ie.IngestedAt AS EventTime,                                    -- ★
+        CAST(NULL AS decimal(18,2)) AS Temp,
+        CAST(NULL AS int) AS Hum,
+        'ERROR' AS Status,
+        ie.IngestedAt,
+        ie.ErrorType,
+        ie.ErrorMessage,
+        ie.RawJson,
+        ie.IngestedAt AS SortTime
+    FROM dbo.IngestError ie
+    WHERE ie.IngestedAt BETWEEN @Start AND @End
+      AND (@Keyword = '' 
+     OR ie.ErrorType LIKE @Keyword 
+     OR ie.ErrorMessage LIKE @Keyword
+     OR ie.RawJson LIKE @Keyword
+     OR (ISJSON(ie.RawJson)=1 AND JSON_VALUE(ie.RawJson,'$.deviceId') LIKE @Keyword))
+) U
+ORDER BY U.SortTime DESC
+OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;"
+            };
+
+            using (var dataCmd = new SqlCommand(dataSql, conn))
+            {
+                dataCmd.Parameters.AddWithValue("@Start", parameters.StartTime);
+                dataCmd.Parameters.AddWithValue("@End", parameters.EndTime);
+                dataCmd.Parameters.AddWithValue("@Keyword", hasKeyword ? $"%{keyword}%" : "");
+                dataCmd.Parameters.AddWithValue("@Offset", (parameters.PageNumber - 1) * parameters.PageSize);
+                dataCmd.Parameters.AddWithValue("@PageSize", parameters.PageSize);
+
+                using var reader = await dataCmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
                 {
-                    // SensorEvent에 DeviceId와 Status 검색
-                    sensorEventConditions.Add("(DeviceId LIKE @Keyword OR Status LIKE @Keyword)");
-                    // IngestError에 ErrorType과 ErrorMessage 검색
-                    ingestErrorConditions.Add("(ErrorType LIKE @Keyword OR ErrorMessage LIKE @Keyword)");
-                }
+                    var recordType = reader["RecordType"]?.ToString();
 
-                if (parameters.StatusFilter is not null && parameters.StatusFilter != "ALL")
-                {
-                    if (parameters.StatusFilter == "OK")
+                    // 안전 보정: EventTime이 null이면 IngestedAt 사용
+                    var eventTime = reader["EventTime"] is DBNull
+                        ? (DateTime)reader["IngestedAt"]
+                        : (DateTime)reader["EventTime"];
+
+                    // 안전 보정: DeviceId가 null/빈문자면 '-'
+                    var deviceIdRaw = reader["DeviceId"] is DBNull ? null : reader["DeviceId"]?.ToString();
+                    var deviceId = string.IsNullOrWhiteSpace(deviceIdRaw) ? "-" : deviceIdRaw;
+
+                    results.Add(new
                     {
-                        sensorEventConditions.Add("Status = 'OK'");
-                        // IngestError는 OK 상태가 없으므로 IngestError 조건에는 추가하지 않음
-                    }
-                    else if (parameters.StatusFilter == "ERROR")
-                    {
-                        // SensorEvent 중 Error 상태를 찾을 필요는 없음 (명시적인 ErrorType이 없으므로)
-                        ingestErrorConditions.Add("ErrorType != 'OK'"); // OK가 아닌 모든 ErrorType
-                    }
-                }
-
-                if (parameters.StartTime != DateTime.MinValue)
-                {
-                    sensorEventConditions.Add("(EventTime >= @StartTime)");
-                    ingestErrorConditions.Add("(IngestedAt >= @StartTime)");
-                }
-
-                if (parameters.EndTime != DateTime.MaxValue)
-                {
-                    sensorEventConditions.Add("(EventTime <= @EndTime)");
-                    ingestErrorConditions.Add("(IngestedAt <= @EndTime)");
-                }
-
-                if (sensorEventConditions.Any()) 
-                {
-                    sensorEventWhereClause = " WHERE " + string.Join(" AND ", sensorEventConditions);
-                }
-                if (ingestErrorConditions.Any())
-                {
-                    ingestErrorWhereClause = " WHERE " + string.Join(" AND ", ingestErrorConditions);
-                }
-
-                // 1. Get total count
-                string countSql = $@"SELECT COUNT(*) FROM (
-                                  SELECT Id FROM dbo.SensorEvent {sensorEventWhereClause}
-                                  UNION ALL
-                                  SELECT Id FROM dbo.IngestError {ingestErrorWhereClause}
-                                  ) AS CombinedResults";
-
-                using (SqlCommand countCmd = new SqlCommand(countSql, conn))
-                {
-                    AddQueryParameters(countCmd, parameters);
-                    object? result = await countCmd.ExecuteScalarAsync(); // Use object? to handle potential null or DBNull
-                    totalCount = (result == null || result == DBNull.Value) ? 0 : Convert.ToInt32(result);
-                }
-
-                // 2. Get paginated data
-                string dataSql = $@"SELECT
-                                      'Event' as RecordType,
-                                      Id,
-                                      DeviceId,
-                                      EventTime,
-                                      Temp,
-                                      Hum,
-                                      Status,
-                                      IngestedAt,
-                                      NULL as ErrorType,
-                                      NULL as ErrorMessage,
-                                      NULL as RawJson
-                                  FROM dbo.SensorEvent {sensorEventWhereClause}
-                                  UNION ALL
-                                  SELECT
-                                      'Error' as RecordType,
-                                      Id,
-                                      NULL as DeviceId,
-                                      NULL as EventTime,
-                                      NULL as Temp,
-                                      NULL as Hum,
-                                      ErrorType as Status, -- Map ErrorType to Status for unified display
-                                      IngestedAt,
-                                      ErrorType,
-                                      ErrorMessage,
-                                      RawJson
-                                  FROM dbo.IngestError {ingestErrorWhereClause}
-                                  ORDER BY IngestedAt DESC
-                                  OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY;";
-
-                using (SqlCommand dataCmd = new SqlCommand(dataSql, conn))
-                {
-                    AddQueryParameters(dataCmd, parameters);
-                    dataCmd.Parameters.AddWithValue("@Offset", (parameters.PageNumber - 1) * parameters.PageSize);
-                    dataCmd.Parameters.AddWithValue("@PageSize", parameters.PageSize);
-
-                    using (var reader = await dataCmd.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            results.Add(new
-                            {
-                                RecordType = reader["RecordType"].ToString(),
-                                Id = reader["Id"],
-                                DeviceId = reader["DeviceId"] is DBNull ? "N/A" : reader["DeviceId"].ToString(),
-                                EventTime = reader["EventTime"] is DBNull ? DateTime.MinValue : (DateTime)reader["EventTime"],
-                                Temp = reader["Temp"] is DBNull ? (decimal?)null : (decimal)reader["Temp"],
-                                Hum = reader["Hum"] is DBNull ? (int?)null : (int)reader["Hum"],
-                                Status = reader["Status"] is DBNull ? "N/A" : reader["Status"].ToString(),
-                                IngestedAt = (DateTime)reader["IngestedAt"],
-                                ErrorType = reader["ErrorType"] is DBNull ? null : reader["ErrorType"].ToString(),
-                                ErrorMessage = reader["ErrorMessage"] is DBNull ? null : reader["ErrorMessage"].ToString(),
-                                RawJson = reader["RawJson"] is DBNull ? null : reader["RawJson"].ToString()
-                            });
-                        }
-                    }
+                        RecordType = recordType,
+                        Id = reader["Id"],
+                        DeviceId = deviceId,
+                        EventTime = eventTime,
+                        Temp = reader["Temp"] is DBNull ? (decimal?)null : Convert.ToDecimal(reader["Temp"]),
+                        Hum = reader["Hum"] is DBNull ? (int?)null : Convert.ToInt32(reader["Hum"]),
+                        Status = reader["Status"]?.ToString(),
+                        IngestedAt = (DateTime)reader["IngestedAt"],
+                        ErrorType = reader["ErrorType"] is DBNull ? null : reader["ErrorType"]?.ToString(),
+                        ErrorMessage = reader["ErrorMessage"] is DBNull ? null : reader["ErrorMessage"]?.ToString(),
+                        RawJson = reader["RawJson"] is DBNull ? null : reader["RawJson"]?.ToString()
+                    });
                 }
             }
 
-            int totalPages = (int)Math.Ceiling(totalCount / (double)parameters.PageSize);
+            var totalPages = (int)Math.Ceiling(totalCount / (double)parameters.PageSize);
 
             return new QueryResult<dynamic>
             {
@@ -292,6 +385,8 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 PageSize = parameters.PageSize
             };
         }
+        // ========= 수정 끝 =========
+
 
         private void AddQueryParameters(SqlCommand cmd, QueryParameters parameters)
         {
