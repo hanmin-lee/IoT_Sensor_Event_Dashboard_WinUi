@@ -25,7 +25,7 @@
 - **주요 구성:** 실시간 이벤트 페이지, 데이터 조회 페이지, 환경설정 페이지
 
 ### ⚙️ Service / Storage
-- **메시지 브로커:** Apache Kafka  
+- **메시지 브로커:** Apache Kafka (v4.1.0)
 - **Consumer 라이브러리:** Confluent.Kafka (v2.4.0)  
 - **데이터베이스:** Microsoft SQL Server  
 - **ORM / DB 드라이버:** Microsoft.Data.SqlClient (v5.2.0)  
