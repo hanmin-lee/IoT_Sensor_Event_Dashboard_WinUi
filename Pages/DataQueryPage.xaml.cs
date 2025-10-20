@@ -1,6 +1,6 @@
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using System;
 
 namespace IoT_Sensor_Event_Dashboard_WinUi.Pages
 {
@@ -20,27 +20,29 @@ namespace IoT_Sensor_Event_Dashboard_WinUi.Pages
         public Button LastButton => buttonQueryLast;
         public TextBlock PageInfo => labelQueryPageInfo;
 
+        private DispatcherTimer? _midnightTimer;
+
         public DataQueryPage()
         {
             InitializeComponent();
 
-            // 기본값 설정 (페이지 처음 열릴 때만 적용)
+            // 기본값: 시작일 고정(2025-10-01 00:00:00), 종료일은 금일 23:59:59
             StartDatePicker.Date = new DateTimeOffset(new DateTime(2025, 10, 1));
             StartTimePicker.Time = new TimeSpan(0, 0, 0);
 
             EndDatePicker.Date = new DateTimeOffset(DateTime.Today);
             EndTimePicker.Time = new TimeSpan(23, 59, 59);
 
-            // 자정이 지나면 자동으로 종료일 갱신
             ScheduleMidnightRefresh();
-        }
 
-        private DispatcherTimer? _midnightTimer;
+            // 페이지가 사라질 때 타이머 정리
+            Unloaded += (_, __) => _midnightTimer?.Stop();
+        }
 
         private void ScheduleMidnightRefresh()
         {
             var now = DateTime.Now;
-            var nextMidnight = now.Date.AddDays(1);   // 다음 자정
+            var nextMidnight = now.Date.AddDays(1);
             var timeUntilMidnight = nextMidnight - now;
 
             _midnightTimer = new DispatcherTimer
@@ -49,18 +51,14 @@ namespace IoT_Sensor_Event_Dashboard_WinUi.Pages
             };
             _midnightTimer.Tick += (_, __) =>
             {
-                // 자정이 되면 종료일을 오늘 날짜로 갱신
+                // 자정 이후 '금일' 반영
                 EndDatePicker.Date = new DateTimeOffset(DateTime.Today);
                 EndTimePicker.Time = new TimeSpan(23, 59, 59);
 
-                // 다음 자정을 위해 24시간 주기로 전환
+                // 이후에는 24시간 주기
                 _midnightTimer!.Interval = TimeSpan.FromDays(1);
             };
             _midnightTimer.Start();
         }
-
-
     }
 }
-
-
