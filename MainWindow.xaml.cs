@@ -450,13 +450,20 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 keyword.TextChanged += (_, __) => { dq.KeywordBox.Text = keyword.Text; };
                 status.SelectionChanged += (_, __) => { dq.StatusCombo.SelectedIndex = status.SelectedIndex; };
 
-                var searchBtn = new Button { Content = "Search", Margin = new Thickness(0,12,0,0), HorizontalAlignment = HorizontalAlignment.Center };
+                var searchBtn = new Button
+                {
+                    Content = "Search",
+                    Margin = new Thickness(0, 12, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Left,      // ← 꽉 채우기
+                    VerticalAlignment = VerticalAlignment.Top,
+                    HorizontalContentAlignment = HorizontalAlignment.Left    // ← 내용은 왼쪽 정렬
+                };
+
                 searchBtn.Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)); // #0F70E0
                 searchBtn.Foreground = new SolidColorBrush(Microsoft.UI.Colors.White);
                 searchBtn.CornerRadius = new CornerRadius(8);
                 searchBtn.Padding = new Thickness(12,4,12,4);
                 searchBtn.MinWidth = 0;
-                searchBtn.VerticalAlignment = VerticalAlignment.Center;
                 // hover/press visuals to match start button
                 var searchBase = Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224);   // #0F70E0
                 var searchHover = Microsoft.UI.ColorHelper.FromArgb(255, 43, 116, 240);  // #2B74F0

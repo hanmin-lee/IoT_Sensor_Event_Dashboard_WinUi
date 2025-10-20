@@ -3,7 +3,8 @@
     x:Class="IoT_Sensor_Event_Dashboard_WinUi.Pages.ConsumerControlPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:IoT_Sensor_Event_Dashboard_WinUi.Pages">
+    xmlns:local="using:IoT_Sensor_Event_Dashboard_WinUi.Pages"
+    NavigationCacheMode="Required">
 
     <ScrollViewer>
         <StackPanel Spacing="16" Padding="24">
