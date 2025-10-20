@@ -64,23 +64,4 @@
 - 시작일: 고정 `2025-10-01`  
 - 종료일: 매일 자정 자동 갱신 (`DispatcherTimer` 기반)
 
----
 
-## 🧱 프로젝트 구조
-  IoT_Sensor_Event_Dashboard_WinUi/
-  ├── MainWindow.xaml.cs # 앱 전역 제어 및 페이지 네비게이션
-  ├── Pages/
-  │ ├── ConsumerControlPage.xaml.cs # 실시간 이벤트 수집 뷰
-  │ ├── DataQueryPage.xaml.cs # DB 조회 / 검색 페이지
-  │ ├── ConfigurationPage.xaml.cs # Kafka & DB 설정 페이지
-  ├── Services/
-  │ ├── KafkaConsumerService.cs # Kafka 메시지 수신 처리
-  │ ├── SensorEventRepository.cs # DB CRUD 및 검색 로직
-  │ ├── AppSettingsManager.cs # 설정 관리 로직
-  ├── Models/
-  │ ├── SensorEvent.cs
-  │ ├── IngestError.cs
-  │ ├── QueryParameters.cs
-  │ ├── QueryResult.cs
-  └── Controls/
-  ├── SystemLogPanel.xaml.cs # 로그 출력 / 관리 컴포넌트
