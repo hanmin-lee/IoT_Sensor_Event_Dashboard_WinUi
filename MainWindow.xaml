@@ -50,8 +50,39 @@
 
         <!-- Secondary menu column (contextual) -->
         <Border Grid.Column="1" Background="White" Padding="12">
-            <StackPanel x:Name="secondaryMenu" Spacing="8" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,10,0,0"/>
+            <StackPanel x:Name="secondaryMenu"
+                Spacing="8"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="0,10,0,0">
+                <StackPanel.Resources>
+                    <!-- ButtonBase로 범위를 넓혀 모든 버튼 계열에 적용 -->
+                    <Style TargetType="ButtonBase">
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                    </Style>
+
+                    <!-- 혹시 AppBarButton/HyperlinkButton을 쓰고 있다면 개별 스타일도 명시 -->
+                    <Style TargetType="AppBarButton">
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                    </Style>
+                    <Style TargetType="HyperlinkButton">
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                    </Style>
+                    <Style TargetType="ToggleButton">
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                    </Style>
+                </StackPanel.Resources>
+            </StackPanel>
         </Border>
+
 
         <!-- Main Content Frame -->
         <Frame x:Name="contentFrame" Grid.Column="2" Navigated="contentFrame_Navigated"/>
