@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36518.9
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IoT_Sensor_Event_Dashboard_WinUi", "IoT_Sensor_Event_Dashboard_WinUi.csproj", "{54ED0749-6FA1-46AC-A224-C45F68BC232F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM64 = Debug|ARM64
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|ARM64 = Release|ARM64
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|ARM64.Build.0 = Debug|ARM64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|x64.ActiveCfg = Debug|x64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|x64.Build.0 = Debug|x64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|x64.Deploy.0 = Debug|x64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|x86.ActiveCfg = Debug|x86
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|x86.Build.0 = Debug|x86
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Debug|x86.Deploy.0 = Debug|x86
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|ARM64.ActiveCfg = Release|ARM64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|ARM64.Build.0 = Release|ARM64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|ARM64.Deploy.0 = Release|ARM64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|x64.ActiveCfg = Release|x64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|x64.Build.0 = Release|x64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|x64.Deploy.0 = Release|x64
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|x86.ActiveCfg = Release|x86
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|x86.Build.0 = Release|x86
+		{54ED0749-6FA1-46AC-A224-C45F68BC232F}.Release|x86.Deploy.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {51475FF9-73E1-4B8B-AFE2-D09F17A9877E}
+	EndGlobalSection
+EndGlobal
