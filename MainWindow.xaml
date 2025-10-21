@@ -17,7 +17,7 @@
     <Grid Background="{StaticResource Brush.Surface}">
                                     <Grid.ColumnDefinitions>
             <ColumnDefinition Width="64"/>
-            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="280"/>
                                         <ColumnDefinition Width="*"/>
             <ColumnDefinition Width="800"/>
                                     </Grid.ColumnDefinitions>
