@@ -379,18 +379,21 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
+        // start 버튼
         private async void buttonStartConsumer_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (_kafkaConsumerService != null)
+                if (_kafkaConsumerService != null && _kafkaConsumerService.IsInitialized)
                 {
-                    _kafkaConsumerService.Stop();
-                    _kafkaConsumerService.LogMessage -= LogToRichTextBox;
-                    _kafkaConsumerService.ErrorOccurred -= LogErrorToRichTextBox;
-                    _kafkaConsumerService.PartitionOffsetUpdated -= UpdatePartitionOffsetLabels;
-                    _kafkaConsumerService.ValidMessageProcessed -= HandleValidMessageProcessed;
-                    _kafkaConsumerService.InvalidMessageProcessed -= HandleInvalidMessageProcessed;
+                    if (_kafkaConsumerService.IsPaused)
+                    {
+                        _kafkaConsumerService.Resume();
+                        LogToRichTextBox("Kafka Consumer resumed (fast).");
+                        return;
+                    }
+                    LogToRichTextBox("Kafka Consumer already running.");
+                    return;
                 }
 
                 string bootstrapServers = AppSettingsManager.KafkaBootstrapServers ?? "";
@@ -408,20 +411,31 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 _kafkaConsumerService.ValidMessageProcessed += HandleValidMessageProcessed;
                 _kafkaConsumerService.InvalidMessageProcessed += HandleInvalidMessageProcessed;
 
-                _kafkaConsumerService.Start();
+                await _kafkaConsumerService.StartAsync();   // ← 여기!
                 LogToRichTextBox("Kafka Consumer started.");
             }
             catch (Exception ex)
             {
-                LogErrorToRichTextBox($"Failed to start Kafka Consumer: {ex.Message}");
+                LogErrorToRichTextBox($"Failed to start/resume Kafka Consumer: {ex.Message}");
             }
         }
 
+
+        // stop 버튼
         private void buttonStopConsumer_Click(object sender, RoutedEventArgs e)
         {
-            _kafkaConsumerService?.Stop();
-            LogToRichTextBox("Kafka Consumer stopped.");
+            if (_kafkaConsumerService?.IsInitialized == true)
+            {
+                _kafkaConsumerService.Pause();
+                LogToRichTextBox("Kafka Consumer paused (soft stop).");
+            }
+            else
+            {
+                _kafkaConsumerService?.Stop();
+                LogToRichTextBox("Kafka Consumer stopped.");
+            }
         }
+
 
         private async void buttonTestConnection_Click(object sender, RoutedEventArgs e)
         {
