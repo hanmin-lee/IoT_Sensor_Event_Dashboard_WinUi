@@ -2,12 +2,10 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
-using Newtonsoft.Json; // Add this using statement
-using System.Text.Json; // For System.Text.Json.JsonDocument
-using System.Text.Json.Serialization; // For JsonPropertyNameAttribute
-using System.Collections.Generic; // Added for List
-using System.Linq; // Added for LINQ operations
-using Microsoft.Data.SqlClient; // Added for SqlTransaction type
+using Newtonsoft.Json;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Data.SqlClient;
 
 namespace IoT_Sensor_Event_Dashboard_WinUi
 {
@@ -30,10 +28,9 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
         private ConsumeResult<Ignore, string>? _lastProcessedCommitResult;
         private readonly object _batchLock = new object();
 
-        // 추가: 상태/플래그
         public bool IsInitialized { get; private set; } = false;
         public bool IsPaused { get; private set; } = false;
-        private volatile bool _consumeEnabled = true; // Pause시 처리만 스킵
+        private volatile bool _consumeEnabled = true;
 
         public event Action<ConsumeResult<Ignore, string>, SensorEvent>? ValidMessageProcessed;
         public event Action<ConsumeResult<Ignore, string>, IngestError>? InvalidMessageProcessed;
@@ -67,8 +64,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
 
             LogMessage?.Invoke("Starting Kafka Consumer...");
 
-            // DB 연결 테스트도 비동기-await (UI 컨텍스트 캡쳐 안 하도록 ConfigureAwait(false) 권장)
-            LogMessage?.Invoke("Performing initial DB connection test...");
             try
             {
                 await using (var testConnection = await _sensorEventRepository.GetOpenConnectionAsync().ConfigureAwait(false))
@@ -80,14 +75,12 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             catch (Exception ex)
             {
                 ErrorOccurred?.Invoke($"Initial DB connection failed: {ex.Message}");
-                LogMessage?.Invoke("Kafka Consumer will attempt to reconnect to DB during message processing.");
-                // 실패해도 컨슈머는 계속 시작
+                LogMessage?.Invoke("Kafka Consumer will attempt DB during processing.");
             }
 
             _cancellationTokenSource = new CancellationTokenSource();
             _consumerTask = Task.Run(() => ConsumeMessages(_cancellationTokenSource.Token));
 
-            // 배치 타이머 시작 (Timer 콜백은 스레드풀에서 돈다)
             _batchTimer = new System.Threading.Timer(async _ =>
             {
                 try { await ProcessBatchesAndCommit(fromTimer: true).ConfigureAwait(false); }
@@ -95,20 +88,13 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }, null, _commitIntervalMs, _commitIntervalMs);
         }
 
-        /// <summary>
-        /// 소프트 스톱: 그룹/하트비트 유지. 메시지 처리만 멈춤(빠른 Resume용)
-        /// </summary>
         public void Pause()
         {
             try
             {
                 if (_consumer == null) return;
-
                 var assigned = _consumer.Assignment;
-                if (assigned.Count > 0)
-                {
-                    _consumer.Pause(assigned);
-                }
+                if (assigned.Count > 0) _consumer.Pause(assigned);
                 _consumeEnabled = false;
                 IsPaused = true;
                 LogMessage?.Invoke("Consumer paused (soft stop).");
@@ -119,20 +105,13 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
-        /// <summary>
-        /// 빠른 재시작: 파티션 Resume + 처리 재개
-        /// </summary>
         public void Resume()
         {
             try
             {
                 if (_consumer == null) return;
-
                 var assigned = _consumer.Assignment;
-                if (assigned.Count > 0)
-                {
-                    _consumer.Resume(assigned);
-                }
+                if (assigned.Count > 0) _consumer.Resume(assigned);
                 _consumeEnabled = true;
                 IsPaused = false;
                 LogMessage?.Invoke("Consumer resumed (fast).");
@@ -143,9 +122,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
-        /// <summary>
-        /// 하드 스톱: 루프 종료/컨슈머 Close/Dispose
-        /// </summary>
         public void Stop()
         {
             if (_cancellationTokenSource != null)
@@ -176,14 +152,13 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 GroupId = _groupId,
                 BootstrapServers = _bootstrapServers,
                 AutoOffsetReset = AutoOffsetReset.Earliest,
-                EnableAutoCommit = false, // 수동 커밋 유지
+                EnableAutoCommit = false,
                 MaxPollIntervalMs = 300000,
-                SessionTimeoutMs = 10000,       // 느린 재개 체감 줄이기
+                SessionTimeoutMs = 10000,
                 HeartbeatIntervalMs = 3000,
                 SocketKeepaliveEnable = true,
-                FetchWaitMaxMs = 250,           // 기본 500 → ↓
+                FetchWaitMaxMs = 250,
                 MetadataMaxAgeMs = 300000
-                // 참고: cooperative-sticky는 라이브러리/브로커 호환에 따라 옵션 이름이 다를 수 있어 안전하게 생략
             };
 
             try
@@ -209,21 +184,15 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 {
                     try
                     {
-                        // 하트비트를 위해 지속적으로 Consume 호출 (짧은 타임아웃)
                         var consumeResult = _consumer.Consume(TimeSpan.FromMilliseconds(200));
-                        if (consumeResult == null || consumeResult.Message == null)
-                            continue;
-
-                        // Pause 중이면 처리 스킵(오프셋 커밋/배치 적재 X)
-                        if (!_consumeEnabled)
-                            continue;
+                        if (consumeResult == null || consumeResult.Message == null) continue;
+                        if (!_consumeEnabled) continue;
 
                         _lastProcessedCommitResult = consumeResult;
                         PartitionOffsetUpdated?.Invoke(consumeResult.Partition.Value, consumeResult.Offset.Value);
 
                         ProcessMessage(consumeResult);
 
-                        // 배치 크기 조건 도달 시 타이머 즉시 트리거
                         if (_sensorEventsBatch.Count >= _batchSize || _ingestErrorsBatch.Count >= _batchSize)
                         {
                             _batchTimer?.Change(0, _commitIntervalMs);
@@ -380,8 +349,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
 
             lock (_batchLock)
             {
-                if (_sensorEventsBatch.Count == 0 && _ingestErrorsBatch.Count == 0)
-                    return;
+                if (_sensorEventsBatch.Count == 0 && _ingestErrorsBatch.Count == 0) return;
 
                 currentSensorEventsBatch = new List<SensorEvent>(_sensorEventsBatch);
                 currentIngestErrorsBatch = new List<IngestError>(_ingestErrorsBatch);
@@ -396,45 +364,51 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 }
             }
 
-            LogMessage?.Invoke($"Processing batch: SensorEvents={currentSensorEventsBatch.Count}, IngestErrors={currentIngestErrorsBatch.Count}");
-            LogMessage?.Invoke("Attempting to get DB connection and begin transaction...");
-
             using (var connection = await _sensorEventRepository.GetOpenConnectionAsync())
             {
                 SqlTransaction? transaction = null;
                 try
                 {
                     transaction = connection.BeginTransaction();
-                    LogMessage?.Invoke("DB connection opened and transaction begun.");
 
                     if (currentSensorEventsBatch.Any())
-                    {
-                        LogMessage?.Invoke($"Saving {currentSensorEventsBatch.Count} SensorEvents...");
                         await _sensorEventRepository.SaveSensorEventsAsync(currentSensorEventsBatch, transaction);
-                    }
 
                     if (currentIngestErrorsBatch.Any())
-                    {
-                        LogMessage?.Invoke($"Saving {currentIngestErrorsBatch.Count} IngestErrors...");
                         await _sensorEventRepository.SaveIngestErrorsAsync(currentIngestErrorsBatch, transaction);
-                    }
 
                     transaction.Commit();
                     LogMessage?.Invoke("Database transaction committed.");
 
+                    // ★ 커밋 성공분을 전역 저장소에 반영
+                    AfterDatabaseCommitSuccessfully(currentSensorEventsBatch);
+                    AfterErrorCommitSuccessfully(currentIngestErrorsBatch); // ★ 추가
+
                     if (commitResult != null)
                     {
                         _consumer?.Commit(commitResult);
-                        LogMessage?.Invoke($"Kafka offset committed for Partition {commitResult.Partition.Value}, Offset {commitResult.Offset.Value}");
                         PartitionOffsetUpdated?.Invoke(commitResult.Partition.Value, commitResult.Offset.Value + 1);
                     }
                 }
                 catch (Exception ex)
                 {
                     ErrorOccurred?.Invoke($"Database batch processing error: {ex.Message}");
-                    LogMessage?.Invoke("Database transaction rolled back. Kafka offset not committed.");
+                    try { transaction?.Rollback(); } catch { }
                 }
             }
         }
+
+        private void AfterDatabaseCommitSuccessfully(IEnumerable<SensorEvent> committedBatch)
+        {
+            if (committedBatch == null) return;
+            foreach (var ev in committedBatch) App.Events?.Enqueue(ev);
+        }
+
+        private void AfterErrorCommitSuccessfully(IEnumerable<IngestError> committedErrors)
+        {
+            if (committedErrors == null) return;
+            foreach (var er in committedErrors) App.Errors?.Enqueue(er);
+        }
+
     }
 }

@@ -10,7 +10,7 @@ using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using IoT_Sensor_Event_Dashboard_WinUi.Pages;
 using IoT_Sensor_Event_Dashboard_WinUi.Controls;
-
+using System.Linq;
 
 namespace IoT_Sensor_Event_Dashboard_WinUi
 {
@@ -32,7 +32,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
         private DateTime _lastUiUpdateTime = DateTime.UtcNow;
         private const int MaxLogLines = 5000;
 
-        // Paging (A안: MainWindow 관리)
         private int _currentPage = 1;
         private int _pageSize = 20;
         private int _totalQueryPages = 1;
@@ -110,15 +109,11 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 systemLog.LogTextBox.SelectionStart = systemLog.LogTextBox.Text.Length;
                 systemLog.LogTextBox.SelectionLength = 0;
 
-                // 스크롤을 강제로 맨 아래로
                 if (VisualTreeHelper.GetChild(systemLog.LogTextBox, 0) is ScrollViewer viewer)
-                {
                     viewer.ChangeView(null, viewer.ExtentHeight, null, true);
-                }
             }
             catch { }
         }
-
 
         private void LogToRichTextBox(string message)
         {
@@ -134,11 +129,85 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
         private void SetupQueryResultListViewColumns() { }
         private void InitializeQueryTab() { }
 
-        // Consumer 페이지 Recent Events 렌더링
+        // === 전역 저장소(정상+에러) → 화면 재구성 ===
+        // 들어온(커밋된) 순서 그대로: IngestedAt 기준 오름차순, 오래된→최신
+        private void RebuildRecentFromStore(ConsumerControlPage page)
+        {
+            try
+            {
+                if (page == null) return;
+
+                var host = page.RecentEventsHost as Panel
+                           ?? page.FindName("RecentEventsHost") as Panel;
+                if (host == null)
+                {
+                    LogErrorToRichTextBox("RebuildRecentFromStore: RecentEventsHost not found.");
+                    return;
+                }
+
+                var evs = App.Events?.TakeLast(400) ?? Array.Empty<SensorEvent>();
+                var ers = App.Errors?.TakeLast(400) ?? Array.Empty<IngestError>();
+
+                // OK/ERROR를 하나의 타임라인으로 합쳐서 IngestedAt(도착 시각) 기준 오름차순 정렬
+                var timeline = evs.Select(e => new
+                {
+                    At = (e.IngestedAt == default ? e.EventTime : e.IngestedAt),
+                    IsError = false,
+                    Ev = e,
+                    Er = (IngestError?)null
+                })
+                                .Concat(
+                                    ers.Select(er => new
+                                    {
+                                        At = (er.IngestedAt == default ? DateTime.UtcNow : er.IngestedAt),
+                                        IsError = true,
+                                        Ev = (SensorEvent?)null,
+                                        Er = er
+                                    })
+                                )
+                                .OrderBy(x => x.At)  // ← 들어온 순서(오래된→최신)
+                                .Take(200)
+                                .ToList();
+
+                host.Children.Clear();
+
+                foreach (var x in timeline)
+                {
+                    if (!x.IsError && x.Ev != null)
+                    {
+                        var ev = x.Ev;
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Tag = "OK" };
+                        row.Children.Add(new TextBlock { Text = x.At.ToLocalTime().ToString("HH:mm:ss"), Width = 70 });
+                        row.Children.Add(new TextBlock { Text = ev.DeviceId ?? "-", Width = 110 });
+                        row.Children.Add(new TextBlock { Text = ev.Status ?? "-", Width = 70 });
+                        row.Children.Add(new TextBlock { Text = ev.Message ?? string.Empty });
+                        host.Children.Add(row);  // ← 아래로 쌓이게 Add
+                    }
+                    else if (x.IsError && x.Er != null)
+                    {
+                        var er = x.Er;
+                        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Tag = "ERROR" };
+                        row.Children.Add(new TextBlock { Text = x.At.ToLocalTime().ToString("HH:mm:ss"), Width = 70 });
+                        row.Children.Add(new TextBlock { Text = "-", Width = 110 });
+                        row.Children.Add(new TextBlock { Text = "ERROR", Width = 70, Foreground = new SolidColorBrush(Microsoft.UI.Colors.IndianRed) });
+                        row.Children.Add(new TextBlock { Text = $"{er.ErrorType}: {er.ErrorMessage}", TextWrapping = TextWrapping.WrapWholeWords });
+                        host.Children.Add(row);  // ← 아래로 쌓이게 Add
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogErrorToRichTextBox($"RebuildRecentFromStore error: {ex.Message}");
+            }
+        }
+
+
+        // === 수신 시 화면 렌더링 + 전역 저장소 누적 (정상) ===
         private void HandleValidMessageProcessed(ConsumeResult<Ignore, string> consumeResult, SensorEvent sensorEvent)
         {
             Interlocked.Increment(ref _messagesProcessedCount);
             LogToRichTextBox($"Valid event: {sensorEvent.DeviceId} {sensorEvent.EventTime:HH:mm:ss} {sensorEvent.Status}");
+
 
             DispatcherQueue?.TryEnqueue(() =>
             {
@@ -150,7 +219,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                     row.Children.Add(new TextBlock { Text = sensorEvent.Status, Width = 70 });
                     row.Children.Add(new TextBlock { Text = sensorEvent.Message ?? string.Empty });
 
-                    page.RecentEventsHost.Children.Insert(0, row);
+                    page.RecentEventsHost.Children.Add(row);
 
                     const int maxRows = 200;
                     while (page.RecentEventsHost.Children.Count > maxRows)
@@ -159,10 +228,13 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             });
         }
 
+
+        // === 수신 시 화면 렌더링 + 전역 저장소 누적 (에러) ===
         private void HandleInvalidMessageProcessed(ConsumeResult<Ignore, string> consumeResult, IngestError ingestError)
         {
             Interlocked.Increment(ref _messagesProcessedCount);
             LogErrorToRichTextBox($"Invalid message at {ingestError.OffsetValue}: {ingestError.ErrorType}");
+
 
             DispatcherQueue?.TryEnqueue(() =>
             {
@@ -174,7 +246,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                     row.Children.Add(new TextBlock { Text = "ERROR", Width = 70, Foreground = new SolidColorBrush(Microsoft.UI.Colors.IndianRed) });
                     row.Children.Add(new TextBlock { Text = $"{ingestError.ErrorType}: {ingestError.ErrorMessage}", TextWrapping = TextWrapping.WrapWholeWords });
 
-                    page.RecentEventsHost.Children.Insert(0, row);
+                    page.RecentEventsHost.Children.Add(row);
 
                     const int maxRows = 200;
                     while (page.RecentEventsHost.Children.Count > maxRows)
@@ -182,6 +254,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 }
             });
         }
+
 
         private void UpdatePartitionOffsetLabels(int partition, long offset)
         {
@@ -238,7 +311,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
-        // DataQueryPage의 컨트롤을 MainWindow 핸들러에 연결
         private void WirePageHandlers()
         {
             secondaryMenu.Children.Clear();
@@ -247,11 +319,10 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             {
                 var title = new TextBlock { Text = "Consumer Control", Margin = new Thickness(4, 0, 0, 10), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
 
-                // start 버튼
                 var startButton = new Button
                 {
                     Content = "Start",
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)), // 파랑
+                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)),
                     Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(12, 4, 12, 4),
@@ -260,11 +331,10 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 };
                 startButton.Click += buttonStartConsumer_Click;
 
-                // stop 버튼
                 var stopButton = new Button
                 {
                     Content = "Stop",
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 236, 239, 245)), // 회색
+                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 236, 239, 245)),
                     Foreground = new SolidColorBrush(Microsoft.UI.Colors.Black),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(12, 4, 12, 4),
@@ -272,15 +342,14 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 };
                 stopButton.Click += buttonStopConsumer_Click;
 
-                // 테스트 메시지 버튼 (색상 start와 동일)
                 var testProducerButton = new Button
                 {
                     Content = "Send Test",
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)), // start 버튼과 동일한 색
+                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)),
                     Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(31, 4, 31, 4),
-                    Margin = new Thickness(0, 8, 0, 0), // 위로 약간 띄워서 start/stop 아래 배치
+                    Margin = new Thickness(0, 8, 0, 0),
                     HorizontalAlignment = HorizontalAlignment.Left
                 };
                 testProducerButton.Click += async (s, e) =>
@@ -288,14 +357,11 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                     try
                     {
                         testProducerButton.IsEnabled = false;
-
                         string bootstrap = AppSettingsManager.KafkaBootstrapServers ?? "localhost:9092";
                         string topic = AppSettingsManager.KafkaTopic ?? "sensor.events";
-
                         var producer = new KafkaProducerService(bootstrap, topic);
                         LogToRichTextBox("Sending 3 test messages...");
-                        await producer.SendTestMessagesAsync(); // 인자 없이 호출
-
+                        await producer.SendTestMessagesAsync();
                         LogToRichTextBox("✅ Sent 3 test messages successfully!");
                     }
                     catch (Exception ex)
@@ -308,7 +374,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                     }
                 };
 
-                // start/stop 한 줄 + 테스트 버튼 한 줄 (세로 스택)
                 var rowTop = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
                 rowTop.Children.Add(startButton);
                 rowTop.Children.Add(stopButton);
@@ -319,9 +384,17 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
 
                 secondaryMenu.Children.Add(title);
                 secondaryMenu.Children.Add(mainStack);
+
+                // 페이지 로드 완료 후 전역 저장소로부터 재구성
+                RoutedEventHandler? handler = null;
+                handler = (s, e) =>
+                {
+                    consumer.Loaded -= handler;
+                    RebuildRecentFromStore(consumer);
+                };
+                consumer.Loaded -= handler;
+                consumer.Loaded += handler;
             }
-
-
             else if (contentFrame.Content is ConfigurationPage config)
             {
                 var title = new TextBlock { Text = "Configuration", Margin = new Thickness(4, 0, 0, 10), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
@@ -379,13 +452,11 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 status.Items.Add(new ComboBoxItem { Content = "OK" });
                 status.Items.Add(new ComboBoxItem { Content = "ERROR" });
 
-                // 페이지 현재 값으로 보조메뉴 초기화
                 startTextBox.Text = q.StartDatePicker.Date.ToString("MM/dd/yyyy");
                 endTextBox.Text = q.EndDatePicker.Date.ToString("MM/dd/yyyy");
                 keyword.Text = q.KeywordBox.Text;
                 status.SelectedIndex = q.StatusCombo.SelectedIndex;
 
-                // 보조메뉴 변경 시 페이지 값만 동기화(자동 조회 X)
                 startTextBox.TextChanged += (_, __) =>
                 {
                     if (DateTime.TryParse(startTextBox.Text, out var s)) q.StartDatePicker.Date = s;
@@ -423,7 +494,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 secondaryMenu.Children.Add(status);
                 secondaryMenu.Children.Add(searchBtn);
 
-                // DataQueryPage 하단 버튼들 → MainWindow 핸들러 연결
                 q.FirstButton.Click -= buttonQueryFirst_Click;
                 q.PrevButton.Click -= buttonQueryPrev_Click;
                 q.NextButton.Click -= buttonQueryNext_Click;
@@ -438,7 +508,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
-        // start 버튼
+        // start
         private async void buttonStartConsumer_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -470,7 +540,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 _kafkaConsumerService.ValidMessageProcessed += HandleValidMessageProcessed;
                 _kafkaConsumerService.InvalidMessageProcessed += HandleInvalidMessageProcessed;
 
-                await _kafkaConsumerService.StartAsync();   // ← 여기!
+                await _kafkaConsumerService.StartAsync();
                 LogToRichTextBox("Kafka Consumer started.");
             }
             catch (Exception ex)
@@ -479,8 +549,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
-
-        // stop 버튼
+        // stop
         private void buttonStopConsumer_Click(object sender, RoutedEventArgs e)
         {
             if (_kafkaConsumerService?.IsInitialized == true)
@@ -494,7 +563,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 LogToRichTextBox("Kafka Consumer stopped.");
             }
         }
-
 
         private async void buttonTestConnection_Click(object sender, RoutedEventArgs e)
         {
@@ -516,7 +584,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
         }
 
-        // 검색(보조메뉴/페이지 하단 공용)
         private async void buttonQuerySearch_Click(object sender, RoutedEventArgs e)
         {
             _currentPage = 1;
@@ -572,13 +639,12 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             var statusItem = q.StatusCombo.SelectedItem as ComboBoxItem;
             var statusText = (statusItem?.Content?.ToString() ?? "ALL").Trim().ToUpperInvariant();
 
-
             var parameters = new QueryParameters
             {
                 StartTime = startTime,
                 EndTime = endTime,
                 Keyword = q.KeywordBox.Text ?? string.Empty,
-                StatusFilter = statusText,          // ← 통일된 값으로 전달
+                StatusFilter = statusText,
                 PageNumber = _currentPage,
                 PageSize = _pageSize
             };
