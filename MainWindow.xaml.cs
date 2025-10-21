@@ -14,6 +14,14 @@ using IoT_Sensor_Event_Dashboard_WinUi.Controls;
 
 namespace IoT_Sensor_Event_Dashboard_WinUi
 {
+    public enum TestScenario
+    {
+        Mixed,
+        ValidOnly,
+        MissingTs,
+        TempAsString
+    }
+
     public sealed partial class MainWindow : Window
     {
         private KafkaConsumerService? _kafkaConsumerService;
@@ -239,40 +247,81 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             {
                 var title = new TextBlock { Text = "Consumer Control", Margin = new Thickness(4, 0, 0, 10), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
 
+                // start 버튼
                 var startButton = new Button
                 {
-                    Content = "start",
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)),
+                    Content = "Start",
+                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)), // 파랑
                     Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(12, 4, 12, 4),
                     Margin = new Thickness(0, 0, 8, 0),
-                    MinWidth = 0,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    VerticalAlignment = VerticalAlignment.Center
+                    HorizontalAlignment = HorizontalAlignment.Left
                 };
                 startButton.Click += buttonStartConsumer_Click;
 
+                // stop 버튼
                 var stopButton = new Button
                 {
-                    Content = "stop",
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 236, 239, 245)),
+                    Content = "Stop",
+                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 236, 239, 245)), // 회색
                     Foreground = new SolidColorBrush(Microsoft.UI.Colors.Black),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(12, 4, 12, 4),
-                    MinWidth = 0,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    VerticalAlignment = VerticalAlignment.Center
+                    HorizontalAlignment = HorizontalAlignment.Left
                 };
                 stopButton.Click += buttonStopConsumer_Click;
 
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Left };
-                row.Children.Add(startButton);
-                row.Children.Add(stopButton);
+                // 테스트 메시지 버튼 (색상 start와 동일)
+                var testProducerButton = new Button
+                {
+                    Content = "Send Test",
+                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)), // start 버튼과 동일한 색
+                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(31, 4, 31, 4),
+                    Margin = new Thickness(0, 8, 0, 0), // 위로 약간 띄워서 start/stop 아래 배치
+                    HorizontalAlignment = HorizontalAlignment.Left
+                };
+                testProducerButton.Click += async (s, e) =>
+                {
+                    try
+                    {
+                        testProducerButton.IsEnabled = false;
+
+                        string bootstrap = AppSettingsManager.KafkaBootstrapServers ?? "localhost:9092";
+                        string topic = AppSettingsManager.KafkaTopic ?? "sensor.events";
+
+                        var producer = new KafkaProducerService(bootstrap, topic);
+                        LogToRichTextBox("Sending 3 test messages...");
+                        await producer.SendTestMessagesAsync(); // 인자 없이 호출
+
+                        LogToRichTextBox("✅ Sent 3 test messages successfully!");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogErrorToRichTextBox($"Failed to send test messages: {ex.Message}");
+                    }
+                    finally
+                    {
+                        testProducerButton.IsEnabled = true;
+                    }
+                };
+
+                // start/stop 한 줄 + 테스트 버튼 한 줄 (세로 스택)
+                var rowTop = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+                rowTop.Children.Add(startButton);
+                rowTop.Children.Add(stopButton);
+
+                var mainStack = new StackPanel { Orientation = Orientation.Vertical, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Left };
+                mainStack.Children.Add(rowTop);
+                mainStack.Children.Add(testProducerButton);
 
                 secondaryMenu.Children.Add(title);
-                secondaryMenu.Children.Add(row);
+                secondaryMenu.Children.Add(mainStack);
             }
+
+
             else if (contentFrame.Content is ConfigurationPage config)
             {
                 var title = new TextBlock { Text = "Configuration", Margin = new Thickness(4, 0, 0, 10), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
