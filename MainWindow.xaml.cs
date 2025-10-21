@@ -7,8 +7,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using IoT_Sensor_Event_Dashboard_WinUi.Pages;
 using IoT_Sensor_Event_Dashboard_WinUi.Controls;
+
 
 namespace IoT_Sensor_Event_Dashboard_WinUi
 {
@@ -96,11 +98,19 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             {
                 systemLog.LogTextBox.Text += line + "\n";
                 EnsureMaxLogLines();
+
                 systemLog.LogTextBox.SelectionStart = systemLog.LogTextBox.Text.Length;
                 systemLog.LogTextBox.SelectionLength = 0;
+
+                // 스크롤을 강제로 맨 아래로
+                if (VisualTreeHelper.GetChild(systemLog.LogTextBox, 0) is ScrollViewer viewer)
+                {
+                    viewer.ChangeView(null, viewer.ExtentHeight, null, true);
+                }
             }
             catch { }
         }
+
 
         private void LogToRichTextBox(string message)
         {
