@@ -15,20 +15,23 @@
             <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="16,16,16,8">
                 <TextBlock Text="System Log" Style="{StaticResource Heading}"/>
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
-                    <Button x:Name="btnLogClear" Content="Clear" Margin="17, 0, 0, 0" Padding="5" Style="{StaticResource Button.Outlined}"/>
+                    <Button x:Name="btnLogClear" Content="Clear" Margin="17,0,0,0" Padding="5" Style="{StaticResource Button.Outlined}"/>
                 </StackPanel>
             </StackPanel>
 
-            <TextBox x:Name="textBoxLog" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" 
-                     ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                     Background="Transparent" BorderThickness="0" FontFamily="Consolas" FontSize="12" Margin="16,0,16,16"/>
+            <TextBox x:Name="textBoxLog"
+                     Grid.Row="1"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     AcceptsReturn="True"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     FontFamily="Consolas"
+                     FontSize="12"
+                     Margin="16,0,16,16"
+                     MinHeight="240"/>
         </Grid>
     </Border>
 </UserControl>
-
-
-
-
-
-
-

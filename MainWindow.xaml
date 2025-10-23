@@ -15,55 +15,57 @@
     </Window.SystemBackdrop>
 
     <Grid Background="{StaticResource Brush.Surface}">
-                                    <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="64"/>
-            <ColumnDefinition Width="280"/>
-                                        <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="800"/>
-                                    </Grid.ColumnDefinitions>
-                                    
-        <!-- Left Sidebar Navigation -->
-        <!-- Primary blue rail with icon buttons (no hamburger/menu icon) -->
+        <!-- ① 비율 기반 레이아웃 (픽셀 고정 제거) -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="colRail" Width="64"/>
+            <ColumnDefinition x:Name="colSecondary" Width="280"/>
+            <!-- 가운데 메인과 로그는 가변 비율 -->
+            <ColumnDefinition x:Name="colMain" Width="5*"/>
+            <ColumnDefinition x:Name="colLog"  Width="4*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ② Left Sidebar Navigation -->
         <Grid Grid.Column="0" Background="{StaticResource Brush.Primary}">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-            <!-- Top icons -->
-            <StackPanel Grid.Row="0" Spacing="16" Margin="0,12,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
-                <Button Tag="consumer" Click="railNav_Click" Background="Transparent" BorderThickness="0" Padding="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Spacing="16" Margin="0,12,0,0"
+                        VerticalAlignment="Top" HorizontalAlignment="Center">
+                <Button Tag="consumer" Click="railNav_Click"
+                        Background="Transparent" BorderThickness="0" Padding="8">
                     <SymbolIcon Symbol="Play" Foreground="{StaticResource Brush.White}"/>
                 </Button>
-                <Button Tag="query" Click="railNav_Click" Background="Transparent" BorderThickness="0" Padding="8">
+                <Button Tag="query" Click="railNav_Click"
+                        Background="Transparent" BorderThickness="0" Padding="8">
                     <SymbolIcon Symbol="Find" Foreground="{StaticResource Brush.White}"/>
                 </Button>
-                                </StackPanel>
+            </StackPanel>
 
-            <!-- Bottom gear -->
-            <StackPanel Grid.Row="2" Margin="0,0,0,12" VerticalAlignment="Bottom" HorizontalAlignment="Center">
-                <Button Tag="config" Click="railNav_Click" Background="Transparent" BorderThickness="0" Padding="8">
+            <StackPanel Grid.Row="2" Margin="0,0,0,12"
+                        VerticalAlignment="Bottom" HorizontalAlignment="Center">
+                <Button Tag="config" Click="railNav_Click"
+                        Background="Transparent" BorderThickness="0" Padding="8">
                     <SymbolIcon Symbol="Setting" Foreground="{StaticResource Brush.White}"/>
                 </Button>
-                                </StackPanel>
-                            </Grid>
+            </StackPanel>
+        </Grid>
 
-        <!-- Secondary menu column (contextual) -->
+        <!-- ③ Secondary menu column -->
         <Border Grid.Column="1" Background="White" Padding="12">
             <StackPanel x:Name="secondaryMenu"
-                Spacing="8"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                Margin="0,10,0,0">
+                        Spacing="8"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Margin="0,10,0,0">
                 <StackPanel.Resources>
-                    <!-- ButtonBase로 범위를 넓혀 모든 버튼 계열에 적용 -->
                     <Style TargetType="ButtonBase">
                         <Setter Property="HorizontalAlignment" Value="Stretch"/>
                         <Setter Property="HorizontalContentAlignment" Value="Left"/>
                         <Setter Property="Padding" Value="12,8"/>
                     </Style>
-
-                    <!-- 혹시 AppBarButton/HyperlinkButton을 쓰고 있다면 개별 스타일도 명시 -->
                     <Style TargetType="AppBarButton">
                         <Setter Property="HorizontalAlignment" Value="Stretch"/>
                         <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -83,11 +85,77 @@
             </StackPanel>
         </Border>
 
+        <!-- ④ Main Content Frame -->
+        <Grid Grid.Column="2" Margin="12,0,12,0"
+              HorizontalAlignment="Stretch"
+              VerticalAlignment="Stretch">
+            <Frame x:Name="contentFrame" Navigated="contentFrame_Navigated"/>
+        </Grid>
 
-        <!-- Main Content Frame -->
-        <Frame x:Name="contentFrame" Grid.Column="2" Navigated="contentFrame_Navigated"/>
+        <!-- ⑤ Right System Log Panel -->
+        <controls:SystemLogPanel x:Name="systemLog"
+                                 Grid.Column="3"
+                                 Margin="12,67,12,66"
+                                 HorizontalAlignment="Stretch"
+                                 VerticalAlignment="Stretch"/>
 
-        <!-- Right System Log Panel -->
-        <controls:SystemLogPanel x:Name="systemLog" Grid.Column="3" Margin="24,67,24,66"/>
+        <!-- ⑥ 반응형 비율 조정 -->
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup x:Name="WindowSizeStates">
+
+                <!-- 데스크톱 (1600px 이상) -->
+                <VisualState x:Name="WideDesktop">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1600"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="colSecondary.Width" Value="280"/>
+                        <Setter Target="colMain.Width" Value="5*"/>
+                        <Setter Target="colLog.Width"  Value="4*"/>
+                        <Setter Target="systemLog.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
+
+                <!-- 노트북 (1200~1599px): 3:2 -->
+                <VisualState x:Name="Laptop">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="1200"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="colSecondary.Width" Value="240"/>
+                        <Setter Target="colMain.Width" Value="3*"/>
+                        <Setter Target="colLog.Width"  Value="2*"/>
+                        <Setter Target="systemLog.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
+
+                <!-- 태블릿 (900~1199px): 1:1 -->
+                <VisualState x:Name="Tablet">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="900"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="colSecondary.Width" Value="200"/>
+                        <Setter Target="colMain.Width" Value="1*"/>
+                        <Setter Target="colLog.Width"  Value="1*"/>
+                        <Setter Target="systemLog.Visibility" Value="Visible"/>
+                    </VisualState.Setters>
+                </VisualState>
+
+                <!-- 작은 화면 (<900px): 보조 메뉴/로그 접기 -->
+                <VisualState x:Name="Phone">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="colSecondary.Width" Value="0"/>
+                        <Setter Target="colMain.Width" Value="1*"/>
+                        <Setter Target="colLog.Width"  Value="0"/>
+                        <Setter Target="systemLog.Visibility" Value="Collapsed"/>
+                    </VisualState.Setters>
+                </VisualState>
+
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
     </Grid>
 </Window>
