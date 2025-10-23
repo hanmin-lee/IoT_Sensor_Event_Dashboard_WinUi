@@ -6,45 +6,78 @@
     xmlns:local="using:IoT_Sensor_Event_Dashboard_WinUi.Pages"
     NavigationCacheMode="Required">
 
-    <ScrollViewer>
-        <StackPanel Spacing="16" Padding="24">
-            <TextBlock Text="Consumer Control" Style="{StaticResource Heading}"/>
+    <!-- 전체 Grid가 부모 비율에 맞게 확장 -->
+    <Grid HorizontalAlignment="Stretch"
+          VerticalAlignment="Stretch"
+          Background="Transparent"
+          Padding="24">
 
-            <Border x:Name="statusSection" Style="{StaticResource Card}" Padding="20">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Real-time Status" Style="{StaticResource Heading}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Partition"/>
-                            <TextBlock x:Name="labelCurrentPartition" Text="N/A"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1">
-                            <TextBlock Text="Offset"/>
-                            <TextBlock x:Name="labelCurrentOffset" Text="N/A"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="Throughput (msg/sec)"/>
-                            <TextBlock x:Name="labelMessagesPerSecond" Text="N/A"/>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
 
-            <Border x:Name="recentSection" Style="{StaticResource Card}" Padding="20">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Recent Events" Style="{StaticResource Heading}"/>
-                    <ScrollViewer Height="660">
-                        <StackPanel x:Name="stackPanelRecentEvents"/>
-                    </ScrollViewer>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
+        <!-- 상단 제목 -->
+        <TextBlock Text="Consumer Control"
+                   Style="{StaticResource Heading}"
+                   Grid.Row="0"
+                   Margin="0,0,0,16"/>
+
+        <!-- Real-time Status 카드 -->
+        <Border x:Name="statusSection"
+                Grid.Row="1"
+                Style="{StaticResource Card}"
+                Padding="20"
+                Margin="25,0,25,24">
+            <StackPanel Spacing="5">
+                <TextBlock Text="Real-time Status"
+                           Style="{StaticResource Heading}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Partition"/>
+                        <TextBlock x:Name="labelCurrentPartition" Text="N/A"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Offset"/>
+                        <TextBlock x:Name="labelCurrentOffset" Text="N/A"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Throughput (msg/sec)"/>
+                        <TextBlock x:Name="labelMessagesPerSecond" Text="N/A"/>
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Recent Events 카드 -->
+        <Border x:Name="recentSection"
+                Grid.Row="2"
+                Style="{StaticResource Card}"
+                Padding="20"
+                VerticalAlignment="Stretch"
+                Margin="25,0,25,42">
+            
+            <StackPanel Spacing="12" VerticalAlignment="Stretch">
+                <TextBlock Text="Recent Events"
+                           Style="{StaticResource Heading}"/>
+
+                <!-- 내부 스크롤 (여기만 스크롤) -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="stackPanelRecentEvents"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Top"/>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+    </Grid>
 </Page>
-
-
