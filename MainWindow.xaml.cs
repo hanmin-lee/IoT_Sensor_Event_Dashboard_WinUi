@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,6 +37,10 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
         private int _pageSize = 20;
         private int _totalQueryPages = 1;
 
+        private readonly Dictionary<string, Button> _navRailButtons = new();
+        private readonly SolidColorBrush _navTransparentBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        private string _activeNavTag = string.Empty;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -46,8 +51,12 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             SetupQueryResultListViewColumns();
             InitializeQueryTab();
 
+            _navRailButtons["consumer"] = NavButtonConsumer;
+            _navRailButtons["query"] = NavButtonQuery;
+            _navRailButtons["config"] = NavButtonConfig;
+
             try { systemLog.ClearButton.Click += btnLogClear_Click; } catch { }
-            try { contentFrame.Navigate(typeof(ConsumerControlPage)); } catch { }
+            try { NavigateTo("consumer"); } catch { UpdateRailSelection("consumer"); }
         }
 
         private void MainWindow_Closed(object sender, WindowEventArgs args)
@@ -303,11 +312,46 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
 
         private void NavigateTo(string tag)
         {
+            if (string.IsNullOrWhiteSpace(tag))
+                return;
+
+            if (_activeNavTag == tag && contentFrame.Content != null)
+                return;
+
             switch (tag)
             {
                 case "consumer": contentFrame.Navigate(typeof(ConsumerControlPage)); break;
                 case "config": contentFrame.Navigate(typeof(ConfigurationPage)); break;
                 case "query": contentFrame.Navigate(typeof(DataQueryPage)); break;
+                default: return;
+            }
+
+            _activeNavTag = tag;
+            UpdateRailSelection(tag);
+        }
+
+        private void UpdateRailSelection(string tag)
+        {
+            if (_navRailButtons.Count == 0)
+                return;
+
+            var activeBackground = Application.Current.Resources["Brush.Nav.ActiveBackground"] as Brush
+                                   ?? new SolidColorBrush(Microsoft.UI.Colors.DodgerBlue);
+            var inactiveForeground = Application.Current.Resources["Brush.Nav.Inactive"] as Brush
+                                     ?? new SolidColorBrush(Microsoft.UI.Colors.LightGray);
+            var activeForeground = Application.Current.Resources["Brush.Nav.ActiveForeground"] as Brush
+                                   ?? new SolidColorBrush(Microsoft.UI.Colors.White);
+
+            foreach (var kvp in _navRailButtons)
+            {
+                var button = kvp.Value;
+                if (button is null)
+                    continue;
+
+                bool isActive = kvp.Key == tag;
+
+                button.Background = isActive ? activeBackground : _navTransparentBrush;
+                button.Foreground = isActive ? activeForeground : inactiveForeground;
             }
         }
 
@@ -686,7 +730,6 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             if (sender is Button b && b.Tag is string tag)
             {
                 NavigateTo(tag);
-                WirePageHandlers();
             }
         }
     }

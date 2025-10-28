@@ -26,14 +26,14 @@ namespace IoT_Sensor_Event_Dashboard_WinUi.Pages
         {
             InitializeComponent();
 
-            // 기본값: 시작일 고정(2025-10-01 00:00:00), 종료일은 금일 23:59:59
+            // Default range: start at 2025-10-01 00:00:00 and end today at 23:59:59
             StartDatePicker.Date = new DateTimeOffset(new DateTime(2025, 10, 1));
             StartTimePicker.Time = new TimeSpan(0, 0, 0);
 
             EndDatePicker.Date = new DateTimeOffset(DateTime.Today);
             EndTimePicker.Time = new TimeSpan(23, 59, 59);
 
-            // 콤보 기본값
+            // Default status filter
             StatusCombo.SelectedIndex = 0; // ALL
 
             ScheduleMidnightRefresh();

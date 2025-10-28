@@ -14,92 +14,188 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid Background="{StaticResource Brush.Surface}">
-        <!-- ① 비율 기반 레이아웃 (픽셀 고정 제거) -->
+    <Grid Background="{StaticResource Brush.AppBackground}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="colRail" Width="64"/>
-            <ColumnDefinition x:Name="colSecondary" Width="280"/>
-            <!-- 가운데 메인과 로그는 가변 비율 -->
+            <ColumnDefinition x:Name="colRail" Width="88"/>
+            <ColumnDefinition x:Name="colSecondary" Width="320"/>
             <ColumnDefinition x:Name="colMain" Width="5*"/>
-            <ColumnDefinition x:Name="colLog"  Width="4*"/>
+            <ColumnDefinition x:Name="colLog" Width="360"/>
         </Grid.ColumnDefinitions>
 
-        <!-- ② Left Sidebar Navigation -->
-        <Grid Grid.Column="0" Background="{StaticResource Brush.Primary}">
+        <Grid.Resources>
+            <Style x:Key="RailButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="12"/>
+                <Setter Property="CornerRadius" Value="14"/>
+                <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                <Setter Property="Foreground" Value="{StaticResource Brush.Nav.Inactive}"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid>
+                                <Border x:Name="Root"
+                                        Background="{TemplateBinding Background}"
+                                        CornerRadius="{TemplateBinding CornerRadius}"/>
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal"/>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{StaticResource Brush.Nav.ButtonHover}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="Root.Background" Value="{StaticResource Brush.Nav.ActiveBackground}"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </Grid.Resources>
+
+        <!-- Navigation rail -->
+        <Grid Grid.RowSpan="2"
+              Grid.Column="0"
+              Background="{StaticResource Brush.Nav.Background}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0" Spacing="16" Margin="0,12,0,0"
-                        VerticalAlignment="Top" HorizontalAlignment="Center">
-                <Button Tag="consumer" Click="railNav_Click"
-                        Background="Transparent" BorderThickness="0" Padding="8">
-                    <SymbolIcon Symbol="Play" Foreground="{StaticResource Brush.White}"/>
-                </Button>
-                <Button Tag="query" Click="railNav_Click"
-                        Background="Transparent" BorderThickness="0" Padding="8">
-                    <SymbolIcon Symbol="Find" Foreground="{StaticResource Brush.White}"/>
-                </Button>
+            <StackPanel Grid.Row="0" Margin="0,28,0,0" Spacing="20" HorizontalAlignment="Center">
+                <StackPanel Orientation="Vertical" Spacing="2" HorizontalAlignment="Center">
+                    <FontIcon Glyph="&#xE780;" Foreground="{StaticResource Brush.White}" FontSize="26"/>
+                    <TextBlock Text="IoT Hub" Foreground="{StaticResource Brush.White}" FontWeight="SemiBold" FontSize="12"/>
+                </StackPanel>
+
+                <StackPanel Spacing="8">
+                    <Button x:Name="NavButtonConsumer" Tag="consumer" Click="railNav_Click" Style="{StaticResource RailButtonStyle}">
+                        <StackPanel Orientation="Vertical" Spacing="6" HorizontalAlignment="Center">
+                            <SymbolIcon Symbol="Play"
+                                        Foreground="{Binding ElementName=NavButtonConsumer, Path=Foreground}"/>
+                            <TextBlock Text="Live"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{Binding ElementName=NavButtonConsumer, Path=Foreground}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="NavButtonQuery" Tag="query" Click="railNav_Click" Style="{StaticResource RailButtonStyle}">
+                        <StackPanel Orientation="Vertical" Spacing="6" HorizontalAlignment="Center">
+                            <SymbolIcon Symbol="Find"
+                                        Foreground="{Binding ElementName=NavButtonQuery, Path=Foreground}"/>
+                            <TextBlock Text="Query"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{Binding ElementName=NavButtonQuery, Path=Foreground}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
             </StackPanel>
 
-            <StackPanel Grid.Row="2" Margin="0,0,0,12"
-                        VerticalAlignment="Bottom" HorizontalAlignment="Center">
-                <Button Tag="config" Click="railNav_Click"
-                        Background="Transparent" BorderThickness="0" Padding="8">
-                    <SymbolIcon Symbol="Setting" Foreground="{StaticResource Brush.White}"/>
+            <StackPanel Grid.Row="2" Margin="0,0,0,28" HorizontalAlignment="Center">
+                <Button x:Name="NavButtonConfig" Tag="config" Click="railNav_Click" Style="{StaticResource RailButtonStyle}">
+                    <StackPanel Orientation="Vertical" Spacing="6" HorizontalAlignment="Center">
+                        <SymbolIcon Symbol="Setting"
+                                    Foreground="{Binding ElementName=NavButtonConfig, Path=Foreground}"/>
+                        <TextBlock Text="Config"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{Binding ElementName=NavButtonConfig, Path=Foreground}"/>
+                    </StackPanel>
                 </Button>
             </StackPanel>
         </Grid>
 
-        <!-- ③ Secondary menu column -->
-        <Border Grid.Column="1" Background="White" Padding="12">
-            <StackPanel x:Name="secondaryMenu"
-                        Spacing="8"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Top"
-                        Margin="0,10,0,0">
+        <!-- Top header -->
+        <Border Grid.Column="1" Grid.ColumnSpan="3" Grid.Row="0" Margin="24,24,24,16"
+                Background="{StaticResource Brush.Surface.Layer}"
+                CornerRadius="20"
+                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" Padding="24">
+            <Grid ColumnSpacing="18" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Vertical" Spacing="6">
+                    <TextBlock Text="IoT Sensor Control Center" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text.Primary}"/>
+                    <TextBlock Text="Monitor ingest pipelines, replay historical events and tune your Kafka connectivity in one place." Style="{StaticResource Caption}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <TextBox Width="220" PlaceholderText="Search sensors or logs" CornerRadius="12"/>
+                    <Button Content="Generate Report" Style="{StaticResource Button.Filled}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Secondary action column -->
+        <Border Grid.Row="1" Grid.Column="1" Margin="24,0,0,24" Padding="24"
+                Background="{StaticResource Brush.Surface.Layer}"
+                CornerRadius="20"
+                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1">
+            <StackPanel x:Name="secondaryMenu" Spacing="14">
                 <StackPanel.Resources>
                     <Style TargetType="ButtonBase">
                         <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                         <Setter Property="Padding" Value="12,8"/>
+                        <Setter Property="Margin" Value="0,4,0,0"/>
                     </Style>
-                    <Style TargetType="AppBarButton">
-                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                        <Setter Property="Padding" Value="12,8"/>
+                    <Style TargetType="Button" BasedOn="{StaticResource Button.Filled}"/>
+                    <Style TargetType="TextBox">
+                        <Setter Property="Margin" Value="0,4,0,0"/>
+                        <Setter Property="CornerRadius" Value="12"/>
                     </Style>
-                    <Style TargetType="HyperlinkButton">
-                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                        <Setter Property="Padding" Value="12,8"/>
+                    <Style TargetType="ComboBox">
+                        <Setter Property="Margin" Value="0,4,0,0"/>
+                        <Setter Property="CornerRadius" Value="12"/>
                     </Style>
                     <Style TargetType="ToggleButton">
                         <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                         <Setter Property="Padding" Value="12,8"/>
+                        <Setter Property="CornerRadius" Value="10"/>
+                    </Style>
+                    <Style TargetType="HyperlinkButton">
+                        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                        <Setter Property="Padding" Value="0,6"/>
                     </Style>
                 </StackPanel.Resources>
             </StackPanel>
         </Border>
 
-        <!-- ④ Main Content Frame -->
-        <Grid Grid.Column="2" Margin="12,0,12,0"
-              HorizontalAlignment="Stretch"
-              VerticalAlignment="Stretch">
+        <!-- Main content frame -->
+        <Border Grid.Row="1" Grid.Column="2" Margin="24,0,24,24" Padding="0"
+                Background="{StaticResource Brush.Surface.Layer}" CornerRadius="24"
+                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1">
             <Frame x:Name="contentFrame" Navigated="contentFrame_Navigated"/>
-        </Grid>
+        </Border>
 
-        <!-- ⑤ Right System Log Panel -->
-        <controls:SystemLogPanel x:Name="systemLog"
-                                 Grid.Column="3"
-                                 Margin="12,67,12,66"
-                                 HorizontalAlignment="Stretch"
-                                 VerticalAlignment="Stretch"/>
+        <!-- System log -->
+        <Border Grid.Row="1" Grid.Column="3" Margin="0,0,24,24" Padding="0"
+                Background="{StaticResource Brush.Surface.Layer}" CornerRadius="24"
+                BorderBrush="{StaticResource Brush.Border}" BorderThickness="1">
+            <controls:SystemLogPanel x:Name="systemLog" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        </Border>
 
-        <!-- ⑥ 반응형 비율 조정 -->
+        <!-- Adaptive layout -->
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup x:Name="WindowSizeStates">
 
@@ -109,9 +205,9 @@
                         <AdaptiveTrigger MinWindowWidth="1600"/>
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="colSecondary.Width" Value="280"/>
+                        <Setter Target="colSecondary.Width" Value="320"/>
                         <Setter Target="colMain.Width" Value="5*"/>
-                        <Setter Target="colLog.Width"  Value="4*"/>
+                        <Setter Target="colLog.Width" Value="360"/>
                         <Setter Target="systemLog.Visibility" Value="Visible"/>
                     </VisualState.Setters>
                 </VisualState>
@@ -122,9 +218,9 @@
                         <AdaptiveTrigger MinWindowWidth="1200"/>
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="colSecondary.Width" Value="240"/>
-                        <Setter Target="colMain.Width" Value="3*"/>
-                        <Setter Target="colLog.Width"  Value="2*"/>
+                        <Setter Target="colSecondary.Width" Value="280"/>
+                        <Setter Target="colMain.Width" Value="4*"/>
+                        <Setter Target="colLog.Width" Value="2*"/>
                         <Setter Target="systemLog.Visibility" Value="Visible"/>
                     </VisualState.Setters>
                 </VisualState>
@@ -137,7 +233,7 @@
                     <VisualState.Setters>
                         <Setter Target="colSecondary.Width" Value="200"/>
                         <Setter Target="colMain.Width" Value="1*"/>
-                        <Setter Target="colLog.Width"  Value="1*"/>
+                        <Setter Target="colLog.Width" Value="1.5*"/>
                         <Setter Target="systemLog.Visibility" Value="Visible"/>
                     </VisualState.Setters>
                 </VisualState>
@@ -150,7 +246,7 @@
                     <VisualState.Setters>
                         <Setter Target="colSecondary.Width" Value="0"/>
                         <Setter Target="colMain.Width" Value="1*"/>
-                        <Setter Target="colLog.Width"  Value="0"/>
+                        <Setter Target="colLog.Width" Value="0"/>
                         <Setter Target="systemLog.Visibility" Value="Collapsed"/>
                     </VisualState.Setters>
                 </VisualState>
