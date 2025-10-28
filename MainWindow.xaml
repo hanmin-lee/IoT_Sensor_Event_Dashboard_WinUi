@@ -15,6 +15,10 @@
     </Window.SystemBackdrop>
 
     <Grid Background="{StaticResource Brush.Surface}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <!-- ① 비율 기반 레이아웃 (픽셀 고정 제거) -->
         <Grid.ColumnDefinitions>
             <ColumnDefinition x:Name="colRail" Width="64"/>
@@ -25,7 +29,7 @@
         </Grid.ColumnDefinitions>
 
         <!-- ② Left Sidebar Navigation -->
-        <Grid Grid.Column="0" Background="{StaticResource Brush.Primary}">
+        <Grid Grid.Column="0" Grid.RowSpan="2" Background="{StaticResource Brush.Navigation}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -34,6 +38,7 @@
 
             <StackPanel Grid.Row="0" Spacing="16" Margin="0,12,0,0"
                         VerticalAlignment="Top" HorizontalAlignment="Center">
+                <FontIcon Glyph="&#xE80F;" FontSize="18" Foreground="{StaticResource Brush.Text.Muted}"/>
                 <Button Tag="consumer" Click="railNav_Click"
                         Background="Transparent" BorderThickness="0" Padding="8">
                     <SymbolIcon Symbol="Play" Foreground="{StaticResource Brush.White}"/>
@@ -53,8 +58,49 @@
             </StackPanel>
         </Grid>
 
+        <!-- ②-1 Top header -->
+        <Border Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="3" Background="{StaticResource Brush.Header}" Padding="28,24"
+                CornerRadius="0,0,24,24" Margin="24,24,24,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="3*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Spacing="8">
+                    <TextBlock Text="IoT Sensor Dashboard" Style="{StaticResource Heading.Large}"/>
+                    <TextBlock Text="Real-time monitoring" Style="{StaticResource Caption}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Right">
+                    <Border Style="{StaticResource InfoPill}">
+                        <StackPanel>
+                            <TextBlock Text="Total" Style="{StaticResource Caption}"/>
+                            <TextBlock x:Name="labelTotalSensors" Text="--" FontSize="18" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource InfoPill}" Background="#193251">
+                        <StackPanel>
+                            <TextBlock Text="Active" Style="{StaticResource Caption}"/>
+                            <TextBlock x:Name="labelActiveSensors" Text="--" FontSize="18" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource InfoPill}" Background="#2B2A12" BorderBrush="#3C3410">
+                        <StackPanel>
+                            <TextBlock Text="Warning" Style="{StaticResource Caption}"/>
+                            <TextBlock x:Name="labelWarningSensors" Text="--" FontSize="18" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource InfoPill}" Background="#331920" BorderBrush="#441E28">
+                        <StackPanel>
+                            <TextBlock Text="Critical" Style="{StaticResource Caption}"/>
+                            <TextBlock x:Name="labelCriticalSensors" Text="--" FontSize="18" FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- ③ Secondary menu column -->
-        <Border Grid.Column="1" Background="White" Padding="12">
+        <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource Brush.SurfaceAlt}" Padding="20" Margin="24,0,12,24" CornerRadius="18">
             <StackPanel x:Name="secondaryMenu"
                         Spacing="8"
                         HorizontalAlignment="Left"
@@ -86,7 +132,7 @@
         </Border>
 
         <!-- ④ Main Content Frame -->
-        <Grid Grid.Column="2" Margin="12,0,12,0"
+        <Grid Grid.Row="1" Grid.Column="2" Margin="12,0,12,24"
               HorizontalAlignment="Stretch"
               VerticalAlignment="Stretch">
             <Frame x:Name="contentFrame" Navigated="contentFrame_Navigated"/>
@@ -94,8 +140,9 @@
 
         <!-- ⑤ Right System Log Panel -->
         <controls:SystemLogPanel x:Name="systemLog"
+                                 Grid.Row="1"
                                  Grid.Column="3"
-                                 Margin="12,67,12,66"
+                                 Margin="12,0,24,24"
                                  HorizontalAlignment="Stretch"
                                  VerticalAlignment="Stretch"/>
 

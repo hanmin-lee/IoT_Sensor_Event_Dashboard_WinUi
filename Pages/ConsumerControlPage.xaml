@@ -10,7 +10,8 @@
     <Grid HorizontalAlignment="Stretch"
           VerticalAlignment="Stretch"
           Background="Transparent"
-          Padding="24">
+          Padding="24"
+          RowSpacing="24">
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -19,40 +20,41 @@
         </Grid.RowDefinitions>
 
         <!-- 상단 제목 -->
-        <TextBlock Text="Consumer Control"
-                   Style="{StaticResource Heading}"
-                   Grid.Row="0"
-                   Margin="0,0,0,16"/>
+        <StackPanel Grid.Row="0" Spacing="4">
+            <TextBlock Text="Consumer Control"
+                       Style="{StaticResource Heading.Large}"/>
+            <TextBlock Text="Monitor consumer health and throughput"
+                       Style="{StaticResource Caption}"/>
+        </StackPanel>
 
         <!-- Real-time Status 카드 -->
         <Border x:Name="statusSection"
                 Grid.Row="1"
                 Style="{StaticResource Card}"
-                Padding="20"
-                Margin="25,0,25,24">
-            <StackPanel Spacing="5">
+                Margin="0">
+            <StackPanel Spacing="20">
                 <TextBlock Text="Real-time Status"
                            Style="{StaticResource Heading}"/>
-                <Grid>
+                <Grid ColumnSpacing="24">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Partition"/>
-                        <TextBlock x:Name="labelCurrentPartition" Text="N/A"/>
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="Partition" Style="{StaticResource Caption}"/>
+                        <TextBlock x:Name="labelCurrentPartition" Text="--" FontSize="22" FontWeight="SemiBold"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="Offset"/>
-                        <TextBlock x:Name="labelCurrentOffset" Text="N/A"/>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock Text="Offset" Style="{StaticResource Caption}"/>
+                        <TextBlock x:Name="labelCurrentOffset" Text="--" FontSize="22" FontWeight="SemiBold"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Throughput (msg/sec)"/>
-                        <TextBlock x:Name="labelMessagesPerSecond" Text="N/A"/>
+                    <StackPanel Grid.Column="2" Spacing="6">
+                        <TextBlock Text="Throughput (msg/sec)" Style="{StaticResource Caption}"/>
+                        <TextBlock x:Name="labelMessagesPerSecond" Text="--" FontSize="22" FontWeight="SemiBold"/>
                     </StackPanel>
                 </Grid>
             </StackPanel>
@@ -62,11 +64,9 @@
         <Border x:Name="recentSection"
                 Grid.Row="2"
                 Style="{StaticResource Card}"
-                Padding="20"
-                VerticalAlignment="Stretch"
-                Margin="25,0,25,42">
-            
-            <StackPanel Spacing="12" VerticalAlignment="Stretch">
+                VerticalAlignment="Stretch">
+
+            <StackPanel Spacing="16" VerticalAlignment="Stretch">
                 <TextBlock Text="Recent Events"
                            Style="{StaticResource Heading}"/>
 
@@ -74,6 +74,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="stackPanelRecentEvents"
+                                Spacing="8"
                                 HorizontalAlignment="Stretch"
                                 VerticalAlignment="Top"/>
                 </ScrollViewer>

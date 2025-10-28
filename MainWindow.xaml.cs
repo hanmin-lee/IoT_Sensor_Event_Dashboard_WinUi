@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
@@ -97,6 +98,80 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                     }
                 }
             }
+        }
+
+        private void UpdateSummaryBadges()
+        {
+            try
+            {
+                var events = App.Events?.Recent;
+                if (events == null)
+                {
+                    DispatcherQueue?.TryEnqueue(() =>
+                    {
+                        labelTotalSensors.Text = "--";
+                        labelActiveSensors.Text = "--";
+                        labelWarningSensors.Text = "--";
+                        labelCriticalSensors.Text = "--";
+                    });
+                    return;
+                }
+
+                var latestByDevice = new List<SensorEvent>();
+                foreach (var group in events.GroupBy(ev => ev.DeviceId))
+                {
+                    var latest = group
+                        .OrderByDescending(ev => ev.EventTime != default ? ev.EventTime : ev.IngestedAt)
+                        .FirstOrDefault();
+                    if (latest != null)
+                        latestByDevice.Add(latest);
+                }
+
+                int total = latestByDevice.Count;
+                int active = latestByDevice.Count(ev => IsStatusMatch(ev.Status, "OK", "ACTIVE", "NORMAL"));
+                int warning = latestByDevice.Count(ev => ContainsStatus(ev.Status, "WARN"));
+                int critical = latestByDevice.Count(ev => ContainsStatus(ev.Status, "CRIT") || ContainsStatus(ev.Status, "ERROR") || ContainsStatus(ev.Status, "FAIL"));
+
+                var errors = App.Errors?.Recent;
+                if (errors != null)
+                    critical += errors.Count;
+
+                DispatcherQueue?.TryEnqueue(() =>
+                {
+                    labelTotalSensors.Text = total.ToString();
+                    labelActiveSensors.Text = active.ToString();
+                    labelWarningSensors.Text = warning.ToString();
+                    labelCriticalSensors.Text = critical.ToString();
+                });
+            }
+            catch
+            {
+                DispatcherQueue?.TryEnqueue(() =>
+                {
+                    labelTotalSensors.Text = "--";
+                    labelActiveSensors.Text = "--";
+                    labelWarningSensors.Text = "--";
+                    labelCriticalSensors.Text = "--";
+                });
+            }
+        }
+
+        private static bool IsStatusMatch(string status, params string[] candidates)
+        {
+            foreach (var candidate in candidates)
+            {
+                if (ContainsStatus(status, candidate))
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool ContainsStatus(string status, string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(status) || string.IsNullOrWhiteSpace(keyword))
+                return false;
+
+            return status.Contains(keyword, StringComparison.OrdinalIgnoreCase);
         }
 
         private void AppendLog(string line)
@@ -283,6 +358,7 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
             _messagesProcessedCount = 0;
             _lastUiUpdateTime = DateTime.UtcNow;
+            UpdateSummaryBadges();
         }
 
         private void btnLogClear_Click(object sender, RoutedEventArgs e)
@@ -317,40 +393,42 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
 
             if (contentFrame.Content is ConsumerControlPage consumer)
             {
-                var title = new TextBlock { Text = "Consumer Control", Margin = new Thickness(4, 0, 0, 10), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
+                var title = new TextBlock
+                {
+                    Text = "Consumer Actions",
+                    Style = (Style)Application.Current.Resources["Heading"],
+                    Margin = new Thickness(4, 0, 0, 4)
+                };
+                var subtitle = new TextBlock
+                {
+                    Text = "Control the live consumer pipeline",
+                    Style = (Style)Application.Current.Resources["Caption"],
+                    Margin = new Thickness(4, 0, 0, 12)
+                };
 
                 var startButton = new Button
                 {
                     Content = "Start",
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)),
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(12, 4, 12, 4),
-                    Margin = new Thickness(0, 0, 8, 0),
-                    HorizontalAlignment = HorizontalAlignment.Left
+                    Style = (Style)Application.Current.Resources["Button.Filled"],
+                    HorizontalAlignment = HorizontalAlignment.Stretch
                 };
                 startButton.Click += buttonStartConsumer_Click;
 
                 var stopButton = new Button
                 {
                     Content = "Stop",
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 236, 239, 245)),
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.Black),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(12, 4, 12, 4),
-                    HorizontalAlignment = HorizontalAlignment.Left
+                    Style = (Style)Application.Current.Resources["Button.Outlined"],
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(0, 8, 0, 0)
                 };
                 stopButton.Click += buttonStopConsumer_Click;
 
                 var testProducerButton = new Button
                 {
                     Content = "Send Test",
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)),
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(31, 4, 31, 4),
-                    Margin = new Thickness(0, 8, 0, 0),
-                    HorizontalAlignment = HorizontalAlignment.Left
+                    Style = (Style)Application.Current.Resources["Button.Filled"],
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(0, 8, 0, 0)
                 };
                 testProducerButton.Click += async (s, e) =>
                 {
@@ -374,16 +452,11 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                     }
                 };
 
-                var rowTop = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-                rowTop.Children.Add(startButton);
-                rowTop.Children.Add(stopButton);
-
-                var mainStack = new StackPanel { Orientation = Orientation.Vertical, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Left };
-                mainStack.Children.Add(rowTop);
-                mainStack.Children.Add(testProducerButton);
-
                 secondaryMenu.Children.Add(title);
-                secondaryMenu.Children.Add(mainStack);
+                secondaryMenu.Children.Add(subtitle);
+                secondaryMenu.Children.Add(startButton);
+                secondaryMenu.Children.Add(stopButton);
+                secondaryMenu.Children.Add(testProducerButton);
 
                 // 페이지 로드 완료 후 전역 저장소로부터 재구성
                 RoutedEventHandler? handler = null;
@@ -397,7 +470,18 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
             }
             else if (contentFrame.Content is ConfigurationPage config)
             {
-                var title = new TextBlock { Text = "Configuration", Margin = new Thickness(4, 0, 0, 10), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
+                var title = new TextBlock
+                {
+                    Text = "Configuration",
+                    Style = (Style)Application.Current.Resources["Heading"],
+                    Margin = new Thickness(4, 0, 0, 4)
+                };
+                var subtitle = new TextBlock
+                {
+                    Text = "Update connection details",
+                    Style = (Style)Application.Current.Resources["Caption"],
+                    Margin = new Thickness(4, 0, 0, 12)
+                };
 
                 config.KafkaBootstrap.Text = AppSettingsManager.KafkaBootstrapServers ?? "localhost:9092";
                 config.KafkaBootstrap.SelectionStart = config.KafkaBootstrap.Text.Length;
@@ -418,36 +502,41 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 var testButton = new Button
                 {
                     Content = "Test Connection",
-                    Margin = new Thickness(0, 0, 0, 0),
-                    MinWidth = 140,
-                    Height = 36,
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)),
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(12, 4, 12, 4),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    VerticalAlignment = VerticalAlignment.Center
+                    Style = (Style)Application.Current.Resources["Button.Filled"],
+                    HorizontalAlignment = HorizontalAlignment.Stretch
                 };
                 testButton.Click += buttonTestConnection_Click;
 
                 secondaryMenu.Children.Add(title);
+                secondaryMenu.Children.Add(subtitle);
                 secondaryMenu.Children.Add(testButton);
             }
             else if (contentFrame.Content is DataQueryPage q)
             {
-                var title = new TextBlock { Text = "Data Query", Margin = new Thickness(4, 0, 0, 10), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold };
+                var title = new TextBlock
+                {
+                    Text = "Data Query",
+                    Style = (Style)Application.Current.Resources["Heading"],
+                    Margin = new Thickness(4, 0, 0, 4)
+                };
+                var subtitle = new TextBlock
+                {
+                    Text = "Filter sensor history",
+                    Style = (Style)Application.Current.Resources["Caption"],
+                    Margin = new Thickness(4, 0, 0, 12)
+                };
 
-                var startLabel = new TextBlock { Text = "Start Date", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-                var startTextBox = new TextBox { Width = 250, PlaceholderText = "MM/DD/YYYY" };
+                var startLabel = new TextBlock { Text = "Start Date", Style = (Style)Application.Current.Resources["Caption"], Margin = new Thickness(0, 0, 0, 4) };
+                var startTextBox = new TextBox { Width = 240, PlaceholderText = "MM/DD/YYYY" };
 
-                var endLabel = new TextBlock { Text = "End Date", Margin = new Thickness(0, 10, 0, 0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-                var endTextBox = new TextBox { Width = 250, PlaceholderText = "MM/DD/YYYY" };
+                var endLabel = new TextBlock { Text = "End Date", Style = (Style)Application.Current.Resources["Caption"], Margin = new Thickness(0, 12, 0, 4) };
+                var endTextBox = new TextBox { Width = 240, PlaceholderText = "MM/DD/YYYY" };
 
-                var keywordLabel = new TextBlock { Text = "Keyword", Margin = new Thickness(0, 10, 0, 0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-                var keyword = new TextBox { Width = 250 };
+                var keywordLabel = new TextBlock { Text = "Keyword", Style = (Style)Application.Current.Resources["Caption"], Margin = new Thickness(0, 12, 0, 4) };
+                var keyword = new TextBox { Width = 240 };
 
-                var statusLabel = new TextBlock { Text = "Status", Margin = new Thickness(0, 10, 0, 0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-                var status = new ComboBox { Width = 250 };
+                var statusLabel = new TextBlock { Text = "Status", Style = (Style)Application.Current.Resources["Caption"], Margin = new Thickness(0, 12, 0, 4) };
+                var status = new ComboBox { Width = 240 };
                 status.Items.Add(new ComboBoxItem { Content = "ALL" });
                 status.Items.Add(new ComboBoxItem { Content = "OK" });
                 status.Items.Add(new ComboBoxItem { Content = "ERROR" });
@@ -471,19 +560,14 @@ namespace IoT_Sensor_Event_Dashboard_WinUi
                 var searchBtn = new Button
                 {
                     Content = "Search",
-                    Margin = new Thickness(0, 12, 0, 0),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    VerticalAlignment = VerticalAlignment.Top,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
-                    Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(255, 15, 112, 224)),
-                    Foreground = new SolidColorBrush(Microsoft.UI.Colors.White),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(12, 4, 12, 4),
-                    MinWidth = 0
+                    Style = (Style)Application.Current.Resources["Button.Filled"],
+                    Margin = new Thickness(0, 16, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Stretch
                 };
                 searchBtn.Click += buttonQuerySearch_Click;
 
                 secondaryMenu.Children.Add(title);
+                secondaryMenu.Children.Add(subtitle);
                 secondaryMenu.Children.Add(startLabel);
                 secondaryMenu.Children.Add(startTextBox);
                 secondaryMenu.Children.Add(endLabel);

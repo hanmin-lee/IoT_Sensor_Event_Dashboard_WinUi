@@ -5,31 +5,32 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:IoT_Sensor_Event_Dashboard_WinUi.Pages">
 
-    <Grid>
+    <Grid RowSpacing="24" Padding="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Data Query" Style="{StaticResource Heading}" Margin="24,24,24,16"/>
+        <StackPanel Grid.Row="0" Spacing="4">
+            <TextBlock Text="Data Query" Style="{StaticResource Heading.Large}"/>
+            <TextBlock Text="Review historical sensor data" Style="{StaticResource Caption}"/>
+        </StackPanel>
 
-        <ScrollViewer Grid.Row="1" Padding="24,0,24,0">
-            <Border Style="{StaticResource Card}" Padding="20">
-                <StackPanel>
-                    <TextBlock Text="Search Results" Style="{StaticResource Heading}" Margin="0,0,0,10"/>
-                    <ListView x:Name="listViewQueryResult" Background="Transparent" BorderThickness="0"/>
-                </StackPanel>
-            </Border>
-        </ScrollViewer>
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0">
+            <StackPanel Spacing="16">
+                <TextBlock Text="Search Results" Style="{StaticResource Heading}"/>
+                <ListView x:Name="listViewQueryResult"/>
+            </StackPanel>
+        </Border>
 
-        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="15" Margin="48,16,48,66">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
-                <Button x:Name="buttonQueryFirst" Content="First" MinWidth="80"/>
-                <Button x:Name="buttonQueryPrev" Content="Previous" MinWidth="80"/>
+        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,24">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                <Button x:Name="buttonQueryFirst" Content="First" MinWidth="96" Style="{StaticResource Button.Outlined}"/>
+                <Button x:Name="buttonQueryPrev" Content="Previous" MinWidth="96" Style="{StaticResource Button.Outlined}"/>
                 <TextBlock x:Name="labelQueryPageInfo" Text="Page 1 / 1" VerticalAlignment="Center"/>
-                <Button x:Name="buttonQueryNext" Content="Next" MinWidth="80"/>
-                <Button x:Name="buttonQueryLast" Content="Last" MinWidth="80"/>
+                <Button x:Name="buttonQueryNext" Content="Next" MinWidth="96" Style="{StaticResource Button.Outlined}"/>
+                <Button x:Name="buttonQueryLast" Content="Last" MinWidth="96" Style="{StaticResource Button.Outlined}"/>
             </StackPanel>
         </Border>
 
